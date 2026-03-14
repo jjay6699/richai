@@ -398,16 +398,17 @@
   margin-top: 2rem;
   padding: 0 1.7rem;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--brand-accent), var(--brand-accent-deep));
-  color: white;
+  background: var(--surface);
+  color: var(--primary-deep);
   text-decoration: none;
   font-weight: 700;
-  box-shadow: 0 16px 28px rgba(197, 138, 74, 0.18);
-  transition: box-shadow 0.3s ease;
+  box-shadow: 0 16px 28px rgba(44, 37, 29, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
 }
 
 .benefits-button:hover {
-  box-shadow: 0 20px 38px rgba(197, 138, 74, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 20px 38px rgba(44, 37, 29, 0.14);
 }
 
 .benefits-visuals {
@@ -419,12 +420,12 @@
 
 .benefit-tile {
   position: relative;
-  min-height: 8.8rem;
+  min-height: 12.5rem;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 1.2rem;
-  border-radius: 1.35rem;
+  padding: 1.4rem;
+  border-radius: 1.5rem;
   overflow: hidden;
   color: white;
   isolation: isolate;
