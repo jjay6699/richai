@@ -21,6 +21,8 @@
   --sky-deep: #0d78ab;
   --cta: #ff8d4e;
   --cta-deep: #f16d3a;
+  --brand-accent: #c58a4a;
+  --brand-accent-deep: #b0743c;
   --shadow-soft: 0 18px 48px rgba(18, 32, 45, 0.08);
   --font-body: "Manrope", "Segoe UI", sans-serif;
   --font-display: "Fraunces", Georgia, serif;
@@ -62,8 +64,7 @@ button {
 }
 
 #root {
-  width: min(1380px, calc(100% - 40px));
-  margin: 0 auto;
+  width: 100%;
 }
 
 h1,
@@ -109,10 +110,6 @@ img {
 }
 
 @media (max-width: 720px) {
-  #root {
-    width: min(100%, calc(100% - 24px));
-  }
-
   h2 {
     max-width: none;
   }
