@@ -180,6 +180,9 @@ function App() {
           <a href="/">Science</a>
           <a href="/">Testimonials</a>
           <a href="/">About us</a>
+          <a className="site-nav-cta" href="/">
+            Start the quiz
+          </a>
         </nav>
 
         <a className="header-cta" href="/">
