@@ -41,29 +41,6 @@ const supportTiles = [
   }
 ];
 
-const loopSteps = [
-  {
-    number: "01",
-    title: "Deep Clinical Decoding",
-    description: "Upload lab reports or DNA data. Our advanced AI, trained on over 500,000 peer-reviewed journals, translates dense biomarkers into clear, actionable insights.",
-  },
-  {
-    number: "02",
-    title: "Live Wearable Sync",
-    description: "Continuous, 24/7 biomarker tracking via seamless smartwatch integration. We adjust nutritional recommendations based on daily sleep, stress, and activity levels.",
-  },
-  {
-    number: "03",
-    title: "24/7 AI Health Advisor",
-    description: "Access instant, reliable support through live chat with our expertly trained AI health advisor to confidently discuss and understand any health issues or concerns.",
-  },
-  {
-    number: "04",
-    title: "Dynamic Health Profiling",
-    description: "Input your baseline metrics during registration and update your health data daily to continuously track, manage, and understand your evolving health condition.",
-  }
-];
-
 // --- Animation Variants ---
 const staggerContainer: Variants = {
   hidden: { opacity: 0 },
@@ -308,42 +285,6 @@ function App() {
               </motion.article>
             ))}
           </motion.div>
-        </section>
-
-        <section className="loop-section">
-          <div className="loop-container">
-            <motion.div 
-              className="loop-header"
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, margin: "-100px" }}
-              variants={staggerContainer}
-            >
-              <motion.p variants={fadeUp} className="loop-kicker">How it works</motion.p>
-              <motion.h2 variants={fadeUp}>The Ultimate Health Loop</motion.h2>
-            </motion.div>
-
-            <motion.div 
-              className="loop-grid"
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, margin: "-50px" }}
-              variants={staggerContainer}
-            >
-              {loopSteps.map((step) => (
-                <motion.div
-                  key={step.number}
-                  variants={fadeUp}
-                  whileHover={{ y: -6, transition: { type: "spring", stiffness: 300 } }}
-                  className="loop-card"
-                >
-                  <div className="loop-number">{step.number}</div>
-                  <h3 className="loop-card-title">{step.title}</h3>
-                  <p className="loop-card-desc">{step.description}</p>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
         </section>
       </main>
     </div>
