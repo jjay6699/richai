@@ -1,35 +1,35 @@
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap");
 
 :root {
-  --primary: #1496d0;
-  --primary-deep: #0d7fb2;
-  --background: #f8fcff;
+  --primary: #d6945a;
+  --primary-deep: #bc7c46;
+  --background: #fdfaf5;
+  --background-off: #f4eee6;
   --surface: #ffffff;
-  --surface-elevated: #f5fbff;
-  --surface-muted: #edf6fb;
-  --text: #12202d;
-  --text-secondary: #587083;
-  --divider: #d3e3ee;
+  --surface-elevated: #faf6f0;
+  --surface-muted: #f0e9df;
+  --text: #2c251d;
+  --text-secondary: #74675a;
+  --text-inverse: #ffffff;
+  --divider: #e4d8c8;
   --success: #2e8b6c;
   --warning: #c17b2f;
   --error: #c94a3a;
   --info: #3b6e8c;
-  --accent-mint: #e8f7ef;
-  --accent-peach: #fff0e3;
-  --accent-blue: #e9f5fc;
-  --sky: #1fa7df;
-  --sky-deep: #0d78ab;
-  --cta: #ff8d4e;
-  --cta-deep: #f16d3a;
-  --brand-accent: #c58a4a;
-  --brand-accent-deep: #b0743c;
-  --shadow-soft: 0 18px 48px rgba(18, 32, 45, 0.08);
+  --accent-base: #b1794b;
+  --accent-dark: #915e34;
+  --brand-gradient: linear-gradient(135deg, #cc8c52 0%, #a66a36 100%);
+  --hero-bg: #b87c47;
+  --hero-title-size: 52px;
+  --section-title-size: 44px;
+  --shadow-soft: 0 18px 48px rgba(44, 37, 29, 0.08);
+  --shadow-glass: 0 8px 32px 0 rgba(145, 94, 52, 0.15);
   --font-body: "Manrope", "Segoe UI", sans-serif;
   --font-display: "Fraunces", Georgia, serif;
 
   font-family: var(--font-body);
   color: var(--text);
-  background: linear-gradient(180deg, #fcfeff 0%, #f8fcff 100%);
+  background: var(--background);
   font-weight: 500;
   line-height: 1.55;
   font-synthesis: none;
@@ -106,7 +106,7 @@ img {
 }
 
 ::selection {
-  background: rgba(31, 167, 223, 0.18);
+  background: rgba(214, 148, 90, 0.2);
 }
 
 @media (max-width: 720px) {
