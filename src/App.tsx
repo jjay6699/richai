@@ -41,6 +41,28 @@ const supportTiles = [
   }
 ];
 
+const personalizationPaths = [
+  {
+    eyebrow: "Start with a quiz",
+    title: "Quiz-based daily blend",
+    body:
+      "Begin with a guided health quiz so RicHealth AI can shape a practical daily blend around your goals, habits, and current routine.",
+    cta: "Start the quiz",
+    tone: "path-quiz"
+  },
+  {
+    eyebrow: "Start with bloodwork",
+    title: "Biomarker-led precision plan",
+    body:
+      "Upload bloodwork for a deeper recommendation layer, linking biomarkers, nutrition gaps, and lifestyle context into a more advanced personalized protocol.",
+    tone: "path-bloodwork",
+    downloads: [
+      { label: "Download on the", store: "App Store" },
+      { label: "Get it on", store: "Google Play" }
+    ]
+  }
+];
+
 // --- Animation Variants ---
 const staggerContainer: Variants = {
   hidden: { opacity: 0 },
@@ -111,6 +133,21 @@ function App() {
   const handleMouseLeave = () => {
     mouseX.set(0);
     mouseY.set(0);
+  };
+
+  const handlePathPointerMove = (event: React.MouseEvent<HTMLElement>) => {
+    const { currentTarget, clientX, clientY } = event;
+    const rect = currentTarget.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * 100;
+    const y = ((clientY - rect.top) / rect.height) * 100;
+
+    currentTarget.style.setProperty("--glow-x", `${x}%`);
+    currentTarget.style.setProperty("--glow-y", `${y}%`);
+  };
+
+  const handlePathPointerLeave = (event: React.MouseEvent<HTMLElement>) => {
+    event.currentTarget.style.setProperty("--glow-x", "50%");
+    event.currentTarget.style.setProperty("--glow-y", "50%");
   };
 
   return (
@@ -282,6 +319,69 @@ function App() {
                 <div className="benefit-badge" aria-hidden="true" />
                 <small className="benefit-meta">{tile.meta}</small>
                 <span>{tile.title}</span>
+              </motion.article>
+            ))}
+          </motion.div>
+        </section>
+
+        <section className="paths-section">
+          <motion.div
+            className="paths-intro"
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={staggerContainer}
+          >
+            <motion.p variants={fadeUp} className="paths-kicker">
+              Our products
+            </motion.p>
+            <motion.h2 variants={fadeUp}>Choose your personalization</motion.h2>
+            <motion.p variants={fadeUp} className="paths-copy">
+              Start with a guided quiz for a fast personalized routine, or go deeper with bloodwork to unlock a more
+              precise recommendation across your biomarkers, lifestyle patterns, and nutritional needs.
+            </motion.p>
+          </motion.div>
+
+          <motion.div
+            className="paths-grid"
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={staggerContainer}
+          >
+            {personalizationPaths.map((path) => (
+              <motion.article
+                key={path.title}
+                className={`path-card ${path.tone}`}
+                variants={fadeUp}
+                whileHover={{ y: -8, transition: { type: "spring", stiffness: 280 } }}
+                onMouseMove={handlePathPointerMove}
+                onMouseLeave={handlePathPointerLeave}
+              >
+                <div className="path-overlay" />
+                <div className="path-gridlines" aria-hidden="true" />
+                <div className="path-ambient path-ambient-one" aria-hidden="true" />
+                <div className="path-ambient path-ambient-two" aria-hidden="true" />
+                <div className="path-glass-frame" aria-hidden="true" />
+                <div className="path-content">
+                  <p className="path-eyebrow">{path.eyebrow}</p>
+                  <h3>{path.title}</h3>
+                  <p>{path.body}</p>
+                  {path.downloads ? (
+                    <div className="path-downloads">
+                      {path.downloads.map((download) => (
+                        <a key={download.store} className="path-store-button" href="/">
+                          <span className="store-label">{download.label}</span>
+                          <strong>{download.store}</strong>
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <a className="path-button" href="/">
+                      {path.cta}
+                    </a>
+                  )}
+                </div>
               </motion.article>
             ))}
           </motion.div>
