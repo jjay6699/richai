@@ -1,32 +1,33 @@
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap");
 
 :root {
-  --primary: #c58a4a;
-  --primary-deep: #b0743c;
-  --background: #fff8f0;
-  --surface: #fffdf9;
-  --surface-elevated: #fffaf3;
-  --surface-muted: #f7efe5;
-  --text: #1f140d;
-  --text-secondary: #6f5a4b;
-  --divider: #e7d9c7;
+  --primary: #1496d0;
+  --primary-deep: #0d7fb2;
+  --background: #f8fcff;
+  --surface: #ffffff;
+  --surface-elevated: #f5fbff;
+  --surface-muted: #edf6fb;
+  --text: #12202d;
+  --text-secondary: #587083;
+  --divider: #d3e3ee;
   --success: #2e8b6c;
-  --warning: #b77a1e;
+  --warning: #c17b2f;
   --error: #c94a3a;
   --info: #3b6e8c;
-  --accent-mint: #e9f1e3;
-  --accent-peach: #fdead7;
-  --accent-blue: #e6eef5;
-  --shadow-soft: 0 14px 40px rgba(31, 20, 13, 0.08);
+  --accent-mint: #e8f7ef;
+  --accent-peach: #fff0e3;
+  --accent-blue: #e9f5fc;
+  --sky: #1fa7df;
+  --sky-deep: #0d78ab;
+  --cta: #ff8d4e;
+  --cta-deep: #f16d3a;
+  --shadow-soft: 0 18px 48px rgba(18, 32, 45, 0.08);
   --font-body: "Manrope", "Segoe UI", sans-serif;
   --font-display: "Fraunces", Georgia, serif;
 
   font-family: var(--font-body);
   color: var(--text);
-  background:
-    radial-gradient(circle at top, rgba(233, 241, 227, 0.55), transparent 28%),
-    radial-gradient(circle at 85% 20%, rgba(253, 234, 215, 0.55), transparent 25%),
-    linear-gradient(180deg, #fff9f1 0%, #fff8f0 40%, #fffaf5 100%);
+  background: linear-gradient(180deg, #fcfeff 0%, #f8fcff 100%);
   font-weight: 500;
   line-height: 1.55;
   font-synthesis: none;
@@ -61,7 +62,7 @@ button {
 }
 
 #root {
-  width: min(1200px, calc(100% - 40px));
+  width: min(1380px, calc(100% - 40px));
   margin: 0 auto;
 }
 
@@ -104,7 +105,7 @@ img {
 }
 
 ::selection {
-  background: rgba(197, 138, 74, 0.2);
+  background: rgba(31, 167, 223, 0.18);
 }
 
 @media (max-width: 720px) {
