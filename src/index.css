@@ -1,0 +1,118 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap");
+
+:root {
+  --primary: #c58a4a;
+  --primary-deep: #b0743c;
+  --background: #fff8f0;
+  --surface: #fffdf9;
+  --surface-elevated: #fffaf3;
+  --surface-muted: #f7efe5;
+  --text: #1f140d;
+  --text-secondary: #6f5a4b;
+  --divider: #e7d9c7;
+  --success: #2e8b6c;
+  --warning: #b77a1e;
+  --error: #c94a3a;
+  --info: #3b6e8c;
+  --accent-mint: #e9f1e3;
+  --accent-peach: #fdead7;
+  --accent-blue: #e6eef5;
+  --shadow-soft: 0 14px 40px rgba(31, 20, 13, 0.08);
+  --font-body: "Manrope", "Segoe UI", sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+
+  font-family: var(--font-body);
+  color: var(--text);
+  background:
+    radial-gradient(circle at top, rgba(233, 241, 227, 0.55), transparent 28%),
+    radial-gradient(circle at 85% 20%, rgba(253, 234, 215, 0.55), transparent 25%),
+    linear-gradient(180deg, #fff9f1 0%, #fff8f0 40%, #fffaf5 100%);
+  font-weight: 500;
+  line-height: 1.55;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--text);
+  background: transparent;
+}
+
+a,
+button {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  background: none;
+}
+
+#root {
+  width: min(1200px, calc(100% - 40px));
+  margin: 0 auto;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  color: var(--text);
+}
+
+h1,
+h2 {
+  font-family: var(--font-display);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+h1 {
+  font-size: clamp(3.25rem, 7vw, 6.2rem);
+  max-width: 12ch;
+}
+
+h2 {
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  max-width: 13ch;
+}
+
+h3 {
+  font-size: 1.2rem;
+  line-height: 1.25;
+}
+
+p {
+  font-size: 1rem;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+::selection {
+  background: rgba(197, 138, 74, 0.2);
+}
+
+@media (max-width: 720px) {
+  #root {
+    width: min(100%, calc(100% - 24px));
+  }
+
+  h2 {
+    max-width: none;
+  }
+}
