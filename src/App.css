@@ -398,8 +398,8 @@
   margin-top: 2rem;
   padding: 0 1.7rem;
   border-radius: 999px;
-  background: var(--surface);
-  color: var(--primary-deep);
+  background: var(--brand-gradient);
+  color: var(--text-inverse);
   text-decoration: none;
   font-weight: 700;
   box-shadow: 0 16px 28px rgba(44, 37, 29, 0.08);
@@ -493,8 +493,8 @@
 
 .benefit-tile span {
   max-width: none;
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 1.15rem;
+  font-weight: 800;
   line-height: 1.1;
   white-space: nowrap;
 }
