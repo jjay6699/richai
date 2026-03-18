@@ -64,6 +64,33 @@ const personalizationPaths = [
   }
 ];
 
+const scienceHighlights = [
+  {
+    value: ">500k",
+    label: "Peer-reviewed journals",
+    body: "AI trained on a vast clinical evidence base to turn biomarkers into clear next steps.",
+    tone: "science-journals"
+  },
+  {
+    value: "24/7",
+    label: "AI health support",
+    body: "Always-on health guidance to help users understand symptoms, reports, and daily signals.",
+    tone: "science-support"
+  },
+  {
+    value: "Live",
+    label: "Wearable adaptation",
+    body: "Recommendations stay responsive to sleep, stress, movement, and evolving recovery patterns.",
+    tone: "science-live"
+  },
+  {
+    value: "Local",
+    label: "Private by design",
+    body: "Sensitive lab and wearable data stays tightly handled with a privacy-first architecture.",
+    tone: "science-private"
+  }
+];
+
 // --- Animation Variants ---
 const staggerContainer: Variants = {
   hidden: { opacity: 0 },
@@ -388,6 +415,67 @@ function MarketingPage() {
                 </div>
               </motion.article>
             ))}
+          </motion.div>
+        </section>
+
+        <section className="science-section">
+          <motion.div
+            className="science-media"
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={staggerContainer}
+          >
+            <motion.div variants={fadeUp} className="science-media-frame">
+              <div className="science-media-image" style={{ backgroundImage: "url(/paths/bloodwork.jpg)" }} />
+              <div className="science-media-wash" />
+              <div className="science-media-card science-media-card-top">
+                <span className="science-card-label">Clinical decoding</span>
+                <strong>Biomarker-led AI</strong>
+              </div>
+              <div className="science-media-card science-media-card-bottom">
+                <span className="science-card-label">Dynamic protocol</span>
+                <strong>Adapts to daily health data</strong>
+              </div>
+            </motion.div>
+          </motion.div>
+
+          <motion.div
+            className="science-copy"
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={staggerContainer}
+          >
+            <motion.p variants={fadeUp} className="science-kicker">
+              The intelligence layer
+            </motion.p>
+            <motion.h2 variants={fadeUp}>
+              <span className="science-title-soft">Cutting-edge</span>
+              <br />
+              nutritional support
+            </motion.h2>
+            <motion.p variants={fadeUp} className="science-body">
+              RicHealth AI connects clinical decoding, continuous wearable context, and natural nutrition into one
+              smarter health loop. The system is built to transform static lab reports into a dynamic daily protocol
+              shaped around real biomarkers, real habits, and real-time change.
+            </motion.p>
+
+            <motion.div variants={staggerContainer} className="science-stats-grid">
+              {scienceHighlights.map((item) => (
+                <motion.article
+                  key={item.label}
+                  variants={fadeUp}
+                  whileHover={{ y: -4, transition: { type: "spring", stiffness: 300 } }}
+                  className={`science-stat-card ${item.tone}`}
+                >
+                  <span className="science-stat-icon" aria-hidden="true" />
+                  <strong>{item.value}</strong>
+                  <h3>{item.label}</h3>
+                  <p>{item.body}</p>
+                </motion.article>
+              ))}
+            </motion.div>
           </motion.div>
         </section>
       </main>
