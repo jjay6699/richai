@@ -66,27 +66,27 @@ const personalizationPaths = [
 
 const scienceHighlights = [
   {
-    value: ">500k",
-    label: "Peer-reviewed journals",
-    body: "AI trained on a vast clinical evidence base to turn biomarkers into clear next steps.",
+    value: "500k+",
+    label: "Peer-reviewed evidence",
+    body: "Trained on a broad clinical literature base to turn complex biomarkers into practical guidance.",
     tone: "science-journals"
   },
   {
     value: "24/7",
-    label: "AI health support",
-    body: "Always-on health guidance to help users understand symptoms, reports, and daily signals.",
+    label: "AI health guidance",
+    body: "Always-on support helps users interpret symptoms, reports, and the small shifts that matter day to day.",
     tone: "science-support"
   },
   {
     value: "Live",
-    label: "Wearable adaptation",
-    body: "Recommendations stay responsive to sleep, stress, movement, and evolving recovery patterns.",
+    label: "Wearable-aware adaptation",
+    body: "Recommendations stay responsive to sleep, movement, stress, and changing recovery patterns.",
     tone: "science-live"
   },
   {
-    value: "Local",
-    label: "Private by design",
-    body: "Sensitive lab and wearable data stays tightly handled with a privacy-first architecture.",
+    value: "Private",
+    label: "Privacy-first handling",
+    body: "Sensitive health data is handled with a tighter, more privacy-conscious architecture from the start.",
     tone: "science-private"
   }
 ];
@@ -427,15 +427,11 @@ function MarketingPage() {
             variants={staggerContainer}
           >
             <motion.div variants={fadeUp} className="science-media-frame">
-              <div className="science-media-image" style={{ backgroundImage: "url(/paths/bloodwork.jpg)" }} />
+              <div className="science-media-image" style={{ backgroundImage: "url(/paths/ai-health.jpg)" }} />
               <div className="science-media-wash" />
-              <div className="science-media-card science-media-card-top">
-                <span className="science-card-label">Clinical decoding</span>
-                <strong>Biomarker-led AI</strong>
-              </div>
-              <div className="science-media-card science-media-card-bottom">
-                <span className="science-card-label">Dynamic protocol</span>
-                <strong>Adapts to daily health data</strong>
+              <div className="science-media-note">
+                <span className="science-card-label">Connected daily signals</span>
+                <strong>Blood markers, habits, and wearable context feed one smarter nutrition loop.</strong>
               </div>
             </motion.div>
           </motion.div>
@@ -451,28 +447,28 @@ function MarketingPage() {
               The intelligence layer
             </motion.p>
             <motion.h2 variants={fadeUp}>
-              <span className="science-title-soft">Cutting-edge</span>
-              <br />
-              nutritional support
+              A smarter nutrition layer for real daily health
             </motion.h2>
             <motion.p variants={fadeUp} className="science-body">
-              RicHealth AI connects clinical decoding, continuous wearable context, and natural nutrition into one
-              smarter health loop. The system is built to transform static lab reports into a dynamic daily protocol
-              shaped around real biomarkers, real habits, and real-time change.
+              RicHealth AI brings lab decoding, wearable context, and natural supplementation into one calmer health
+              workflow. Instead of static recommendations, it keeps guidance grounded in biomarkers, habits, and the
+              signals that evolve over time.
             </motion.p>
 
-            <motion.div variants={staggerContainer} className="science-stats-grid">
+            <motion.div variants={staggerContainer} className="science-proof-grid">
               {scienceHighlights.map((item) => (
                 <motion.article
                   key={item.label}
                   variants={fadeUp}
-                  whileHover={{ y: -4, transition: { type: "spring", stiffness: 300 } }}
-                  className={`science-stat-card ${item.tone}`}
+                  whileHover={{ y: -3, transition: { type: "spring", stiffness: 280 } }}
+                  className={`science-proof-item ${item.tone}`}
                 >
-                  <span className="science-stat-icon" aria-hidden="true" />
-                  <strong>{item.value}</strong>
-                  <h3>{item.label}</h3>
-                  <p>{item.body}</p>
+                  <span className="science-proof-accent" aria-hidden="true" />
+                  <div className="science-proof-copy">
+                    <strong>{item.value}</strong>
+                    <h3>{item.label}</h3>
+                    <p>{item.body}</p>
+                  </div>
                 </motion.article>
               ))}
             </motion.div>
