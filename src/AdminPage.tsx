@@ -607,7 +607,6 @@ function AdminPage() {
       <aside className="admin-sidebar">
         <div className="admin-sidebar-top">
           <div className="admin-brand-block">
-            <span className="admin-brand-mark">RA</span>
             <div>
               <p className="admin-brand-eyebrow">RichAI</p>
               <h1 className="admin-brand-title">Admin</h1>
@@ -630,7 +629,6 @@ function AdminPage() {
                   }}
                   disabled={disabled}
                 >
-                  <span className="admin-nav-badge">{item.shortLabel}</span>
                   <span className="admin-nav-copy">
                     <strong>{item.label}</strong>
                     <small>{item.description}</small>
@@ -642,14 +640,6 @@ function AdminPage() {
         </div>
 
         <div className="admin-sidebar-bottom">
-          <div className="admin-side-status">
-            <span className={`admin-side-dot${isSignedIn ? " is-online" : ""}`} />
-            <div>
-              <strong>{isSignedIn ? "Live session" : "Signed out"}</strong>
-              <small>{isSignedIn ? `Source: ${apiBase}` : "Authenticate to load admin data"}</small>
-            </div>
-          </div>
-
           <div className="admin-side-actions">
             <button
               className="admin-side-button"
