@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { motion, type Variants, useMotionValue, useTransform, useSpring } from "framer-motion";
+import AdminPage from "./AdminPage";
 import "./App.css";
 
 const supportTiles = [
@@ -99,7 +100,7 @@ const heroCardFloat: Variants = {
   }),
 };
 
-function App() {
+function MarketingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   // --- Parallax Mouse Effect ---
@@ -392,6 +393,15 @@ function App() {
       </main>
     </div>
   );
+}
+
+function App() {
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
+  if (pathname.startsWith("/admin")) {
+    return <AdminPage />;
+  }
+
+  return <MarketingPage />;
 }
 
 export default App;
