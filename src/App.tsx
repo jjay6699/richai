@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { motion, type Variants, useMotionValue, useSpring, useTransform } from "framer-motion";
 import AdminPage from "./AdminPage";
+import ContactPage from "./ContactPage";
+import IngredientsPage from "./IngredientsPage";
 import "./App.css";
 
 const howItWorksSteps = [
@@ -194,7 +196,8 @@ function MarketingPage() {
           <a href="#solution">How it works</a>
           <a href="#product">The blend</a>
           <a href="#technology">Technology</a>
-          <a href="#contact">Contact</a>
+          <a href="/ingredients">Ingredients</a>
+          <a href="/contact">Contact</a>
           <a className="site-nav-cta" href="#start">
             Start Your Health Journey
           </a>
@@ -479,13 +482,50 @@ function MarketingPage() {
 
       <footer className="site-footer" id="contact">
         <div className="site-footer-inner">
-          <span className="site-footer-brand">RicHealth AI</span>
-          <nav className="site-footer-nav" aria-label="Footer">
-            <a href="/">Privacy Policy</a>
-            <a href="/">Terms of Service</a>
-            <a href="/">Contact</a>
-            <a href="/">Social Media</a>
-          </nav>
+          <div className="site-footer-top">
+            <div className="site-footer-brand-block">
+              <span className="site-footer-brand">RicHealth AI</span>
+              <p className="site-footer-summary">
+                Precision health built around diagnostics, wearable context, and personalized natural nutrition.
+              </p>
+            </div>
+
+            <div className="site-footer-columns">
+              <div className="site-footer-column">
+                <span className="site-footer-heading">Platform</span>
+                <a href="#solution">How it works</a>
+                <a href="#product">Your blend</a>
+                <a href="/ingredients">Ingredients</a>
+                <a href="#technology">Technology & trust</a>
+              </div>
+
+              <div className="site-footer-column">
+                <span className="site-footer-heading">Company</span>
+                <a href="/">About</a>
+                <a href="/contact">Contact</a>
+                <a href="/">Social Media</a>
+              </div>
+
+              <div className="site-footer-column">
+                <span className="site-footer-heading">Legal</span>
+                <a href="/">Privacy Policy</a>
+                <a href="/">Terms of Service</a>
+                <a href="/">Cookies</a>
+              </div>
+
+              <div className="site-footer-column">
+                <span className="site-footer-heading">Reach us</span>
+                <a href="mailto:hello@richealth.ai">hello@richealth.ai</a>
+                <a href="tel:+60000000000">+60 00-000 0000</a>
+                <span className="site-footer-meta">Mon to Fri, 9:00 AM to 6:00 PM</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="site-footer-bottom">
+            <span className="site-footer-meta">© 2026 RicHealth AI. All rights reserved.</span>
+            <span className="site-footer-meta">Affordable subscription plan and personalized nutrition.</span>
+          </div>
         </div>
       </footer>
     </div>
@@ -496,6 +536,12 @@ function App() {
   const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
   if (pathname.startsWith("/admin")) {
     return <AdminPage />;
+  }
+  if (pathname.startsWith("/contact")) {
+    return <ContactPage />;
+  }
+  if (pathname.startsWith("/ingredients")) {
+    return <IngredientsPage />;
   }
 
   return <MarketingPage />;
