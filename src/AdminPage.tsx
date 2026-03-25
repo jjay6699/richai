@@ -43,7 +43,7 @@ interface AdminOverview {
 type AdminSection = "overview" | "users" | "sales";
 
 const STORAGE_KEY = "richai_admin_credentials";
-const apiBase = (import.meta.env.VITE_APP_API_URL || "https://healthai.up.railway.app").replace(/\/$/, "");
+const apiBase = (import.meta.env.VITE_APP_API_URL || "/api").replace(/\/$/, "");
 const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; description: string }> = [
   { id: "overview", label: "Overview", shortLabel: "OV", description: "Key operational snapshot" },
   { id: "users", label: "Users", shortLabel: "US", description: "App registrations and account activity" },
@@ -164,7 +164,7 @@ function AdminPage() {
     setError("");
 
     try {
-      const response = await fetch(`${apiBase}/api/admin/overview`, {
+      const response = await fetch(`${apiBase}/admin/overview`, {
         headers: {
           Authorization: encodeBasicAuth(nextUsername, nextPassword)
         }
@@ -194,7 +194,13 @@ function AdminPage() {
       setDashboard(null);
       setSelectedUserId(null);
       setSelectedOrderId(null);
-      setError(nextError instanceof Error ? nextError.message : "Unable to load dashboard.");
+      const message =
+        nextError instanceof TypeError
+          ? "Unable to reach the admin service. If you are running locally, restart the Vite server so the /api proxy is active."
+          : nextError instanceof Error
+            ? nextError.message
+            : "Unable to load dashboard.";
+      setError(message);
     } finally {
       setIsLoading(false);
     }

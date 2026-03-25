@@ -1,8 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, type Variants, useMotionValue, useSpring, useTransform } from "framer-motion";
 import AdminPage from "./AdminPage";
 import ContactPage from "./ContactPage";
 import IngredientsPage from "./IngredientsPage";
+import { applySeo } from "./seo";
 import "./App.css";
 
 const howItWorksSteps = [
@@ -534,6 +535,46 @@ function MarketingPage() {
 
 function App() {
   const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
+
+  useEffect(() => {
+    if (pathname.startsWith("/admin")) {
+      applySeo({
+        title: "Admin | RicHealth AI",
+        description: "Protected RicHealth AI admin access.",
+        path: "/admin",
+        robots: "noindex,nofollow"
+      });
+      return;
+    }
+
+    if (pathname.startsWith("/contact")) {
+      applySeo({
+        title: "Contact Us | RicHealth AI",
+        description:
+          "Contact RicHealth AI for product questions, ingredient enquiries, partnerships, and support.",
+        path: "/contact"
+      });
+      return;
+    }
+
+    if (pathname.startsWith("/ingredients")) {
+      applySeo({
+        title: "Ingredients | RicHealth AI",
+        description:
+          "Explore the RicHealth AI ingredient range, from greens and antioxidant fruits to functional staples and signature blends.",
+        path: "/ingredients"
+      });
+      return;
+    }
+
+    applySeo({
+      title: "RicHealth AI | Precision Health and Personalized Nutrition",
+      description:
+        "RicHealth AI connects diagnostics, wearable insights, and personalized nutrition to help users build a smarter health journey.",
+      path: "/"
+    });
+  }, [pathname]);
+
   if (pathname.startsWith("/admin")) {
     return <AdminPage />;
   }
