@@ -516,6 +516,13 @@ function AdminPage() {
     return () => window.clearTimeout(timeout);
   }, [copiedField]);
 
+  useEffect(() => {
+    if (!flashMessage) return;
+
+    const timeout = window.setTimeout(() => setFlashMessage(""), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [flashMessage]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await fetchDashboard(username.trim(), password);
