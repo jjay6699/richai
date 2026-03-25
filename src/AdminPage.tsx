@@ -179,6 +179,7 @@ function AdminPage() {
   const [salesStatusFilter, setSalesStatusFilter] = useState("all");
   const [salesDateRange, setSalesDateRange] = useState<DateRangeFilter>("all");
   const [salesSort, setSalesSort] = useState<OrderSortKey>("createdAt_desc");
+  const [globalLookupQuery, setGlobalLookupQuery] = useState("");
   const [copiedField, setCopiedField] = useState("");
 
   const recentUsers = useMemo(() => dashboard?.users.slice(0, 5) || [], [dashboard]);
@@ -321,6 +322,83 @@ function AdminPage() {
   const linkedUserForOrder = useMemo(() => {
     if (!selectedOrder?.userId || !dashboard?.users.length) return null;
     return dashboard.users.find((user) => user.id === selectedOrder.userId) || null;
+  }, [dashboard, selectedOrder]);
+  const globalLookupResults = useMemo(() => {
+    if (!dashboard || !globalLookupQuery.trim()) return [];
+
+    const query = globalLookupQuery.trim().toLowerCase();
+    const userMatches = dashboard.users
+      .filter((user) =>
+        user.name?.toLowerCase().includes(query) ||
+        user.email?.toLowerCase().includes(query) ||
+        user.country?.toLowerCase().includes(query) ||
+        user.id.toLowerCase().includes(query)
+      )
+      .slice(0, 4)
+      .map((user) => ({
+        key: `user-${user.id}`,
+        type: "user" as const,
+        id: user.id,
+        title: user.name || "Unnamed user",
+        subtitle: user.email || user.id,
+        meta: `Registered ${formatDate(user.createdAt)}`
+      }));
+
+    const orderMatches = dashboard.orders
+      .filter((order) =>
+        order.orderNumber.toLowerCase().includes(query) ||
+        order.customerName?.toLowerCase().includes(query) ||
+        order.userEmail?.toLowerCase().includes(query) ||
+        order.id.toLowerCase().includes(query) ||
+        order.plan.toLowerCase().includes(query) ||
+        order.planLabel?.toLowerCase().includes(query)
+      )
+      .slice(0, 4)
+      .map((order) => ({
+        key: `order-${order.id}`,
+        type: "order" as const,
+        id: order.id,
+        title: order.orderNumber,
+        subtitle: order.customerName || order.userEmail || "Unassigned customer",
+        meta: `${order.status} · ${formatCurrency(order.price)}`
+      }));
+
+    return [...userMatches, ...orderMatches].slice(0, 8);
+  }, [dashboard, globalLookupQuery]);
+  const relatedOrdersForUser = useMemo(() => {
+    if (!selectedUser || !dashboard?.orders.length) return [];
+
+    return dashboard.orders
+      .filter(
+        (order) =>
+          order.userId === selectedUser.id ||
+          (selectedUser.email && order.userEmail?.toLowerCase() === selectedUser.email.toLowerCase())
+      )
+      .sort((left, right) => right.createdAt - left.createdAt)
+      .slice(0, 5);
+  }, [dashboard, selectedUser]);
+  const orderCustomerHistory = useMemo(() => {
+    if (!selectedOrder || !dashboard?.orders.length) {
+      return {
+        orders: [] as AdminOrder[],
+        totalOrders: 0,
+        totalRevenue: 0
+      };
+    }
+
+    const matches = dashboard.orders
+      .filter((order) => {
+        if (selectedOrder.userId && order.userId === selectedOrder.userId) return true;
+        if (selectedOrder.userEmail && order.userEmail?.toLowerCase() === selectedOrder.userEmail.toLowerCase()) return true;
+        return false;
+      })
+      .sort((left, right) => right.createdAt - left.createdAt);
+
+    return {
+      orders: matches.slice(0, 5),
+      totalOrders: matches.length,
+      totalRevenue: matches.reduce((sum, order) => sum + order.price, 0)
+    };
   }, [dashboard, selectedOrder]);
 
   const sectionMeta = getSectionMeta(activeSection, dashboard, lastSyncedAt);
@@ -498,6 +576,17 @@ function AdminPage() {
         order.source || ""
       ])
     ]);
+  };
+
+  const openLookupResult = (result: { type: "user" | "order"; id: string }) => {
+    if (result.type === "user") {
+      setSelectedUserId(result.id);
+      setActiveSection("users");
+    } else {
+      setSelectedOrderId(result.id);
+      setActiveSection("sales");
+    }
+    setGlobalLookupQuery("");
   };
 
   const renderOverview = () => (
@@ -762,44 +851,90 @@ function AdminPage() {
           </span>
         </div>
         {selectedUser ? (
-          <dl className="admin-detail-grid">
-            <div>
-              <dt>Provider</dt>
-              <dd>{getProviderLabel(selectedUser.provider)}</dd>
+          <>
+            <div className="admin-detail-summary-grid">
+              <article className="admin-detail-summary-card">
+                <span className="admin-status-label">Linked orders</span>
+                <strong>{relatedOrdersForUser.length}</strong>
+              </article>
+              <article className="admin-detail-summary-card">
+                <span className="admin-status-label">User spend</span>
+                <strong>{formatCurrency(relatedOrdersForUser.reduce((sum, order) => sum + order.price, 0))}</strong>
+              </article>
             </div>
-            <div>
-              <dt>Country</dt>
-              <dd>{selectedUser.country || "--"}</dd>
-            </div>
-            <div>
-              <dt>Registered</dt>
-              <dd>{formatDate(selectedUser.createdAt)}</dd>
-            </div>
-            <div>
-              <dt>Last login</dt>
-              <dd>{formatDate(selectedUser.lastLoginAt)}</dd>
-            </div>
-            <div className="admin-detail-block">
-              <dt>User ID</dt>
-              <dd className="admin-copy-row">
-                <span>{selectedUser.id}</span>
-                <button type="button" className="admin-copy-button" onClick={() => handleCopy("user-id", selectedUser.id)}>
-                  {copiedField === "user-id" ? "Copied" : "Copy"}
-                </button>
-              </dd>
-            </div>
-            <div className="admin-detail-block">
-              <dt>Email</dt>
-              <dd className="admin-copy-row">
-                <span>{selectedUser.email || "--"}</span>
-                {selectedUser.email ? (
-                  <button type="button" className="admin-copy-button" onClick={() => handleCopy("user-email", selectedUser.email)}>
-                    {copiedField === "user-email" ? "Copied" : "Copy"}
+
+            <dl className="admin-detail-grid">
+              <div>
+                <dt>Provider</dt>
+                <dd>{getProviderLabel(selectedUser.provider)}</dd>
+              </div>
+              <div>
+                <dt>Country</dt>
+                <dd>{selectedUser.country || "--"}</dd>
+              </div>
+              <div>
+                <dt>Registered</dt>
+                <dd>{formatDate(selectedUser.createdAt)}</dd>
+              </div>
+              <div>
+                <dt>Last login</dt>
+                <dd>{formatDate(selectedUser.lastLoginAt)}</dd>
+              </div>
+              <div className="admin-detail-block">
+                <dt>User ID</dt>
+                <dd className="admin-copy-row">
+                  <span>{selectedUser.id}</span>
+                  <button type="button" className="admin-copy-button" onClick={() => handleCopy("user-id", selectedUser.id)}>
+                    {copiedField === "user-id" ? "Copied" : "Copy"}
                   </button>
-                ) : null}
-              </dd>
+                </dd>
+              </div>
+              <div className="admin-detail-block">
+                <dt>Email</dt>
+                <dd className="admin-copy-row">
+                  <span>{selectedUser.email || "--"}</span>
+                  {selectedUser.email ? (
+                    <button type="button" className="admin-copy-button" onClick={() => handleCopy("user-email", selectedUser.email)}>
+                      {copiedField === "user-email" ? "Copied" : "Copy"}
+                    </button>
+                  ) : null}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="admin-related-panel">
+              <div className="admin-related-panel-head">
+                <p className="admin-panel-kicker">Related orders</p>
+                <strong>{relatedOrdersForUser.length ? "Customer history" : "No linked orders"}</strong>
+              </div>
+              {relatedOrdersForUser.length ? (
+                <div className="admin-mini-list">
+                  {relatedOrdersForUser.map((order) => (
+                    <button
+                      key={order.id}
+                      type="button"
+                      className="admin-mini-row"
+                      onClick={() => {
+                        setSelectedOrderId(order.id);
+                        setActiveSection("sales");
+                      }}
+                    >
+                      <div>
+                        <strong>{order.orderNumber}</strong>
+                        <span>{formatDate(order.createdAt)}</span>
+                      </div>
+                      <div className="admin-mini-row-meta">
+                        <span className={`admin-tag admin-tag-${getStatusTone(order.status)}`}>{order.status}</span>
+                        <small>{formatCurrency(order.price)}</small>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="admin-related-note">No order records are currently linked to this user.</div>
+              )}
             </div>
-          </dl>
+          </>
         ) : (
           <div className="admin-empty-card admin-empty-detail">
             <strong>No detail available</strong>
@@ -943,7 +1078,19 @@ function AdminPage() {
               {selectedOrder?.customerName || selectedOrder?.userEmail || "Choose an order row to inspect sale details."}
             </span>
           </div>
-          {selectedOrder ? (
+        {selectedOrder ? (
+          <>
+            <div className="admin-detail-summary-grid">
+              <article className="admin-detail-summary-card">
+                <span className="admin-status-label">Customer orders</span>
+                <strong>{orderCustomerHistory.totalOrders}</strong>
+              </article>
+              <article className="admin-detail-summary-card">
+                <span className="admin-status-label">Customer spend</span>
+                <strong>{formatCurrency(orderCustomerHistory.totalRevenue)}</strong>
+              </article>
+            </div>
+
             <dl className="admin-detail-grid">
               <div>
                 <dt>Customer</dt>
@@ -1002,6 +1149,36 @@ function AdminPage() {
                 </dd>
               </div>
             </dl>
+            <div className="admin-related-panel">
+              <div className="admin-related-panel-head">
+                <p className="admin-panel-kicker">Customer history</p>
+                <strong>{orderCustomerHistory.orders.length ? "Related orders" : "Single order record"}</strong>
+              </div>
+              {orderCustomerHistory.orders.length ? (
+                <div className="admin-mini-list">
+                  {orderCustomerHistory.orders.map((order) => (
+                    <button
+                      key={order.id}
+                      type="button"
+                      className={`admin-mini-row${order.id === selectedOrder.id ? " is-active" : ""}`}
+                      onClick={() => setSelectedOrderId(order.id)}
+                    >
+                      <div>
+                        <strong>{order.orderNumber}</strong>
+                        <span>{order.planLabel || order.plan}</span>
+                      </div>
+                      <div className="admin-mini-row-meta">
+                        <span className={`admin-tag admin-tag-${getStatusTone(order.status)}`}>{order.status}</span>
+                        <small>{formatCurrency(order.price)}</small>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="admin-related-note">No additional orders are linked to this customer yet.</div>
+              )}
+            </div>
+          </>
           ) : (
             <div className="admin-empty-card admin-empty-detail">
               <strong>No detail available</strong>
@@ -1129,6 +1306,46 @@ function AdminPage() {
 
         {flashMessage ? <div className="admin-flash-message">{flashMessage}</div> : null}
         {isSignedIn && error ? <div className="admin-inline-warning">{error}</div> : null}
+        {isSignedIn ? (
+          <section className="admin-lookup-bar">
+            <label className="admin-lookup-field">
+              <span>Global lookup</span>
+              <input
+                value={globalLookupQuery}
+                onChange={(event) => setGlobalLookupQuery(event.target.value)}
+                placeholder="Search users, emails, order numbers, plans, or IDs"
+              />
+            </label>
+            {globalLookupQuery.trim() ? (
+              <div className="admin-lookup-results">
+                {globalLookupResults.length ? (
+                  globalLookupResults.map((result) => (
+                    <button
+                      key={result.key}
+                      type="button"
+                      className="admin-lookup-result"
+                      onClick={() => openLookupResult(result)}
+                    >
+                      <div>
+                        <strong>{result.title}</strong>
+                        <span>{result.subtitle}</span>
+                      </div>
+                      <div className="admin-lookup-meta">
+                        <span className="admin-tag admin-tag-neutral">{result.type}</span>
+                        <small>{result.meta}</small>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="admin-empty-card">
+                    <strong>No matches found</strong>
+                    <p>Try a user email, order number, plan name, or internal ID.</p>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         {!isSignedIn ? (
           <section className="admin-login-layout">

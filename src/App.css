@@ -1851,6 +1851,84 @@
   font-weight: 700;
 }
 
+.admin-lookup-bar {
+  margin-bottom: 1rem;
+}
+
+.admin-lookup-field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.admin-lookup-field span {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.admin-lookup-field input {
+  min-height: 3rem;
+  padding: 0.82rem 0.95rem;
+  border: 1px solid rgba(145, 94, 52, 0.16);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--text);
+  font-size: 0.94rem;
+}
+
+.admin-lookup-field input:focus {
+  outline: 2px solid rgba(212, 148, 90, 0.22);
+  border-color: rgba(145, 94, 52, 0.24);
+}
+
+.admin-lookup-results {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.admin-lookup-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(145, 94, 52, 0.12);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.admin-lookup-result:hover {
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+.admin-lookup-result strong,
+.admin-lookup-result span,
+.admin-lookup-meta small {
+  display: block;
+}
+
+.admin-lookup-result span,
+.admin-lookup-meta small {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.admin-lookup-meta {
+  display: grid;
+  justify-items: end;
+  gap: 0.35rem;
+  text-align: right;
+}
+
 .admin-inline-warning {
   border: 1px solid rgba(201, 74, 58, 0.14);
   background: rgba(201, 74, 58, 0.08);
@@ -2370,6 +2448,27 @@
   margin: 0;
 }
 
+.admin-detail-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.admin-detail-summary-card {
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(145, 94, 52, 0.1);
+  border-radius: 1rem;
+  background: rgba(252, 249, 243, 0.94);
+}
+
+.admin-detail-summary-card strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text);
+  font-size: 1.2rem;
+}
+
 .admin-detail-grid dt,
 .admin-detail-grid dd {
   margin: 0;
@@ -2432,6 +2531,71 @@
   line-height: 1.5;
 }
 
+.admin-related-panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(228, 216, 200, 0.86);
+}
+
+.admin-related-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.admin-related-panel-head strong {
+  color: var(--text);
+  font-size: 0.94rem;
+}
+
+.admin-mini-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.admin-mini-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(145, 94, 52, 0.1);
+  border-radius: 1rem;
+  background: #fffdfa;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.admin-mini-row:hover,
+.admin-mini-row.is-active {
+  background: #fff;
+  border-color: rgba(145, 94, 52, 0.18);
+}
+
+.admin-mini-row strong,
+.admin-mini-row span,
+.admin-mini-row-meta small {
+  display: block;
+}
+
+.admin-mini-row span,
+.admin-mini-row-meta small {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.admin-mini-row-meta {
+  display: grid;
+  justify-items: end;
+  gap: 0.35rem;
+  text-align: right;
+}
+
 .admin-empty-detail {
   min-height: 13rem;
   display: flex;
@@ -2472,6 +2636,10 @@
 
   .admin-controls {
     justify-content: flex-start;
+  }
+
+  .admin-detail-summary-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -2550,6 +2718,24 @@
   .admin-activity-meta {
     align-items: flex-start;
     text-align: left;
+  }
+
+  .admin-lookup-result,
+  .admin-mini-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-lookup-meta,
+  .admin-mini-row-meta,
+  .admin-related-panel-head {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .admin-related-panel-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
