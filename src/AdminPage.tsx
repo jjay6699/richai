@@ -41,6 +41,7 @@ interface AdminOverview {
 }
 
 type AdminSection = "overview" | "users" | "sales";
+type FetchStatus = "idle" | "restored" | "authenticated" | "refresh_failed" | "expired";
 
 const STORAGE_KEY = "richai_admin_credentials";
 const apiBase = (import.meta.env.VITE_APP_API_URL || "/api").replace(/\/$/, "");
@@ -52,6 +53,17 @@ const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; de
 
 const encodeBasicAuth = (username: string, password: string) =>
   `Basic ${window.btoa(`${username}:${password}`)}`;
+
+const copyToClipboard = async (value: string) => {
+  if (!navigator?.clipboard?.writeText) return false;
+
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const formatDate = (timestamp: number | null) =>
   timestamp
@@ -125,31 +137,84 @@ function AdminPage() {
   const [dashboard, setDashboard] = useState<AdminOverview | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [status, setStatus] = useState<FetchStatus>("idle");
+  const [flashMessage, setFlashMessage] = useState("");
   const [activeSection, setActiveSection] = useState<AdminSection>("overview");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [usersQuery, setUsersQuery] = useState("");
+  const [usersProviderFilter, setUsersProviderFilter] = useState("all");
+  const [salesQuery, setSalesQuery] = useState("");
+  const [salesStatusFilter, setSalesStatusFilter] = useState("all");
+  const [copiedField, setCopiedField] = useState("");
 
   const recentUsers = useMemo(() => dashboard?.users.slice(0, 5) || [], [dashboard]);
   const recentOrders = useMemo(() => dashboard?.orders.slice(0, 5) || [], [dashboard]);
+  const providerOptions = useMemo(() => {
+    if (!dashboard?.users.length) return [];
+    return Array.from(new Set(dashboard.users.map((user) => user.provider).filter(Boolean))).sort();
+  }, [dashboard]);
+  const salesStatusOptions = useMemo(() => {
+    if (!dashboard?.orders.length) return [];
+    return Array.from(new Set(dashboard.orders.map((order) => order.status).filter(Boolean))).sort();
+  }, [dashboard]);
+  const filteredUsers = useMemo(() => {
+    if (!dashboard?.users.length) return [];
+
+    const query = usersQuery.trim().toLowerCase();
+    return dashboard.users.filter((user) => {
+      const matchesProvider = usersProviderFilter === "all" || user.provider === usersProviderFilter;
+      const matchesQuery =
+        !query ||
+        user.name?.toLowerCase().includes(query) ||
+        user.email?.toLowerCase().includes(query) ||
+        user.country?.toLowerCase().includes(query) ||
+        user.id.toLowerCase().includes(query);
+
+      return matchesProvider && Boolean(matchesQuery);
+    });
+  }, [dashboard, usersProviderFilter, usersQuery]);
+  const filteredOrders = useMemo(() => {
+    if (!dashboard?.orders.length) return [];
+
+    const query = salesQuery.trim().toLowerCase();
+    return dashboard.orders.filter((order) => {
+      const matchesStatus = salesStatusFilter === "all" || order.status === salesStatusFilter;
+      const matchesQuery =
+        !query ||
+        order.orderNumber.toLowerCase().includes(query) ||
+        order.customerName?.toLowerCase().includes(query) ||
+        order.userEmail?.toLowerCase().includes(query) ||
+        order.plan.toLowerCase().includes(query) ||
+        order.planLabel?.toLowerCase().includes(query) ||
+        order.id.toLowerCase().includes(query);
+
+      return matchesStatus && Boolean(matchesQuery);
+    });
+  }, [dashboard, salesQuery, salesStatusFilter]);
 
   const selectedUser = useMemo(() => {
-    if (!dashboard?.users.length) return null;
+    if (!filteredUsers.length) return null;
     return (
-      dashboard.users.find((user) => user.id === selectedUserId) ||
-      dashboard.users[0] ||
+      filteredUsers.find((user) => user.id === selectedUserId) ||
+      filteredUsers[0] ||
       null
     );
-  }, [dashboard, selectedUserId]);
+  }, [filteredUsers, selectedUserId]);
 
   const selectedOrder = useMemo(() => {
-    if (!dashboard?.orders.length) return null;
+    if (!filteredOrders.length) return null;
     return (
-      dashboard.orders.find((order) => order.id === selectedOrderId) ||
-      dashboard.orders[0] ||
+      filteredOrders.find((order) => order.id === selectedOrderId) ||
+      filteredOrders[0] ||
       null
     );
-  }, [dashboard, selectedOrderId]);
+  }, [filteredOrders, selectedOrderId]);
+  const linkedUserForOrder = useMemo(() => {
+    if (!selectedOrder?.userId || !dashboard?.users.length) return null;
+    return dashboard.users.find((user) => user.id === selectedOrder.userId) || null;
+  }, [dashboard, selectedOrder]);
 
   const sectionMeta = getSectionMeta(activeSection, dashboard, lastSyncedAt);
   const isSignedIn = Boolean(dashboard);
@@ -158,10 +223,11 @@ function AdminPage() {
   const fetchDashboard = async (
     nextUsername: string,
     nextPassword: string,
-    options?: { preserveSection?: boolean }
+    options?: { preserveSection?: boolean; restoredSession?: boolean }
   ) => {
     setIsLoading(true);
     setError("");
+    setFlashMessage("");
 
     try {
       const response = await fetch(`${apiBase}/admin/overview`, {
@@ -172,10 +238,12 @@ function AdminPage() {
 
       const payload = (await response.json().catch(() => null)) as AdminOverview | { error?: string } | null;
       if (!response.ok || !payload || ("error" in payload && typeof payload.error === "string")) {
+        const authFailure =
+          response.status === 401 ||
+          response.status === 403 ||
+          (payload && "error" in payload && payload.error === "admin_auth_required");
         throw new Error(
-          payload && "error" in payload && payload.error === "admin_auth_required"
-            ? "Invalid admin username or password."
-            : "Unable to load dashboard."
+          authFailure ? "Invalid admin username or password." : "Unable to load dashboard."
         );
       }
 
@@ -187,20 +255,42 @@ function AdminPage() {
       setLastSyncedAt(Date.now());
       setSelectedUserId((payload as AdminOverview).users[0]?.id || null);
       setSelectedOrderId((payload as AdminOverview).orders[0]?.id || null);
+      setStatus(options?.restoredSession ? "restored" : "authenticated");
+      setFlashMessage(
+        options?.restoredSession
+          ? "Restored your admin session."
+          : "Dashboard synced successfully."
+      );
       if (!options?.preserveSection) {
         setActiveSection("overview");
       }
     } catch (nextError) {
-      setDashboard(null);
-      setSelectedUserId(null);
-      setSelectedOrderId(null);
-      const message =
+      const nextMessage =
         nextError instanceof TypeError
-          ? "Unable to reach the admin service. If you are running locally, restart the Vite server so the /api proxy is active."
+          ? "Unable to reach the admin service. Check the production proxy or local /api proxy and try again."
           : nextError instanceof Error
             ? nextError.message
             : "Unable to load dashboard.";
-      setError(message);
+      const isAuthError = nextMessage === "Invalid admin username or password.";
+
+      if (isAuthError) {
+        window.sessionStorage.removeItem(STORAGE_KEY);
+        setDashboard(null);
+        setSelectedUserId(null);
+        setSelectedOrderId(null);
+        setLastSyncedAt(null);
+        setStatus("expired");
+      } else if (!dashboard) {
+        setSelectedUserId(null);
+        setSelectedOrderId(null);
+      } else {
+        setStatus("refresh_failed");
+      }
+
+      if (!dashboard || isAuthError) {
+        setDashboard(isAuthError ? null : dashboard);
+      }
+      setError(nextMessage);
     } finally {
       setIsLoading(false);
     }
@@ -215,7 +305,7 @@ function AdminPage() {
       if (parsed.username) setUsername(parsed.username);
       if (parsed.password) {
         setPassword(parsed.password);
-        void fetchDashboard(parsed.username || "admin", parsed.password, { preserveSection: true });
+        void fetchDashboard(parsed.username || "admin", parsed.password, { preserveSection: true, restoredSession: true });
       }
     } catch {
       window.sessionStorage.removeItem(STORAGE_KEY);
@@ -223,16 +313,23 @@ function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (dashboard?.users.length && !dashboard.users.some((user) => user.id === selectedUserId)) {
-      setSelectedUserId(dashboard.users[0].id);
+    if (filteredUsers.length && !filteredUsers.some((user) => user.id === selectedUserId)) {
+      setSelectedUserId(filteredUsers[0].id);
     }
-  }, [dashboard, selectedUserId]);
+  }, [filteredUsers, selectedUserId]);
 
   useEffect(() => {
-    if (dashboard?.orders.length && !dashboard.orders.some((order) => order.id === selectedOrderId)) {
-      setSelectedOrderId(dashboard.orders[0].id);
+    if (filteredOrders.length && !filteredOrders.some((order) => order.id === selectedOrderId)) {
+      setSelectedOrderId(filteredOrders[0].id);
     }
-  }, [dashboard, selectedOrderId]);
+  }, [filteredOrders, selectedOrderId]);
+
+  useEffect(() => {
+    if (!copiedField) return;
+
+    const timeout = window.setTimeout(() => setCopiedField(""), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [copiedField]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -248,10 +345,18 @@ function AdminPage() {
     setPassword("");
     setDashboard(null);
     setError("");
+    setStatus("idle");
+    setFlashMessage("Signed out of the admin console.");
     setSelectedUserId(null);
     setSelectedOrderId(null);
     setLastSyncedAt(null);
     setActiveSection("overview");
+  };
+
+  const handleCopy = async (label: string, value: string | null | undefined) => {
+    if (!value) return;
+    const didCopy = await copyToClipboard(value);
+    setCopiedField(didCopy ? label : "");
   };
 
   const renderOverview = () => (
@@ -387,9 +492,35 @@ function AdminPage() {
             <p className="admin-panel-kicker">Users</p>
             <h3>Registrations list</h3>
           </div>
-          <span className="admin-filter-placeholder">Search and filters reserved for next iteration</span>
+          <div className="admin-controls">
+            <label className="admin-control-field">
+              <span>Search</span>
+              <input
+                value={usersQuery}
+                onChange={(event) => setUsersQuery(event.target.value)}
+                placeholder="Name, email, country, or user ID"
+              />
+            </label>
+            <label className="admin-control-field">
+              <span>Provider</span>
+              <select
+                value={usersProviderFilter}
+                onChange={(event) => setUsersProviderFilter(event.target.value)}
+              >
+                <option value="all">All providers</option>
+                {providerOptions.map((provider) => (
+                  <option key={provider} value={provider}>
+                    {getProviderLabel(provider)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="admin-filter-summary">
+              Showing {filteredUsers.length} of {dashboard?.users.length ?? 0}
+            </span>
+          </div>
         </div>
-        {dashboard?.users.length ? (
+        {filteredUsers.length ? (
           <div className="admin-table-wrap">
             <table className="admin-table">
               <thead>
@@ -403,7 +534,7 @@ function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {dashboard.users.map((user) => {
+                {filteredUsers.map((user) => {
                   const isSelected = selectedUser?.id === user.id;
                   return (
                     <tr
@@ -429,8 +560,8 @@ function AdminPage() {
           </div>
         ) : (
           <div className="admin-empty-card admin-empty-expanded">
-            <strong>No users found</strong>
-            <p>User records from the app service will appear here once people register.</p>
+            <strong>No matching users</strong>
+            <p>Adjust the current search or provider filter to inspect different registrations.</p>
           </div>
         )}
       </article>
@@ -463,7 +594,23 @@ function AdminPage() {
             </div>
             <div className="admin-detail-block">
               <dt>User ID</dt>
-              <dd>{selectedUser.id}</dd>
+              <dd className="admin-copy-row">
+                <span>{selectedUser.id}</span>
+                <button type="button" className="admin-copy-button" onClick={() => handleCopy("user-id", selectedUser.id)}>
+                  {copiedField === "user-id" ? "Copied" : "Copy"}
+                </button>
+              </dd>
+            </div>
+            <div className="admin-detail-block">
+              <dt>Email</dt>
+              <dd className="admin-copy-row">
+                <span>{selectedUser.email || "--"}</span>
+                {selectedUser.email ? (
+                  <button type="button" className="admin-copy-button" onClick={() => handleCopy("user-email", selectedUser.email)}>
+                    {copiedField === "user-email" ? "Copied" : "Copy"}
+                  </button>
+                ) : null}
+              </dd>
             </div>
           </dl>
         ) : (
@@ -496,9 +643,35 @@ function AdminPage() {
               <p className="admin-panel-kicker">Sales</p>
               <h3>Order records</h3>
             </div>
-            <span className="admin-filter-placeholder">Filters reserved for the next admin release</span>
+            <div className="admin-controls">
+              <label className="admin-control-field">
+                <span>Search</span>
+                <input
+                  value={salesQuery}
+                  onChange={(event) => setSalesQuery(event.target.value)}
+                  placeholder="Order, customer, email, plan, or order ID"
+                />
+              </label>
+              <label className="admin-control-field">
+                <span>Status</span>
+                <select
+                  value={salesStatusFilter}
+                  onChange={(event) => setSalesStatusFilter(event.target.value)}
+                >
+                  <option value="all">All statuses</option>
+                  {salesStatusOptions.map((statusOption) => (
+                    <option key={statusOption} value={statusOption}>
+                      {statusOption}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <span className="admin-filter-summary">
+                Showing {filteredOrders.length} of {dashboard?.orders.length ?? 0}
+              </span>
+            </div>
           </div>
-          {dashboard?.orders.length ? (
+          {filteredOrders.length ? (
             <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
@@ -513,7 +686,7 @@ function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {dashboard.orders.map((order) => {
+                  {filteredOrders.map((order) => {
                     const isSelected = selectedOrder?.id === order.id;
                     return (
                       <tr
@@ -540,8 +713,8 @@ function AdminPage() {
             </div>
           ) : (
             <div className="admin-empty-card admin-empty-expanded">
-              <strong>No sales found</strong>
-              <p>Server-side app orders will appear here after new purchases are recorded.</p>
+              <strong>No matching sales</strong>
+              <p>Adjust the current search or status filter to inspect different order records.</p>
             </div>
           )}
         </article>
@@ -594,7 +767,23 @@ function AdminPage() {
               </div>
               <div className="admin-detail-block">
                 <dt>Order ID</dt>
-                <dd>{selectedOrder.id}</dd>
+                <dd className="admin-copy-row">
+                  <span>{selectedOrder.id}</span>
+                  <button type="button" className="admin-copy-button" onClick={() => handleCopy("order-id", selectedOrder.id)}>
+                    {copiedField === "order-id" ? "Copied" : "Copy"}
+                  </button>
+                </dd>
+              </div>
+              <div className="admin-detail-block">
+                <dt>User ID</dt>
+                <dd className="admin-copy-row">
+                  <span>{selectedOrder.userId || "--"}</span>
+                  {selectedOrder.userId ? (
+                    <button type="button" className="admin-copy-button" onClick={() => handleCopy("order-user-id", selectedOrder.userId)}>
+                      {copiedField === "order-user-id" ? "Copied" : "Copy"}
+                    </button>
+                  ) : null}
+                </dd>
               </div>
             </dl>
           ) : (
@@ -602,6 +791,24 @@ function AdminPage() {
               <strong>No detail available</strong>
               <p>Select an order row to review sale metadata and payment context.</p>
             </div>
+          )}
+          {selectedOrder && linkedUserForOrder ? (
+            <div className="admin-related-action">
+              <button
+                type="button"
+                className="admin-link-button"
+                onClick={() => {
+                  setSelectedUserId(linkedUserForOrder.id);
+                  setActiveSection("users");
+                }}
+              >
+                Open linked user
+              </button>
+            </div>
+          ) : (
+            selectedOrder && selectedOrder.userId ? (
+              <div className="admin-related-note">No matching user record was found for this order.</div>
+            ) : null
           )}
         </aside>
       </section>
@@ -646,6 +853,13 @@ function AdminPage() {
         </div>
 
         <div className="admin-sidebar-bottom">
+          {isSignedIn ? (
+            <div className="admin-session-card">
+              <span className="admin-status-label">Signed in as</span>
+              <strong>{username.trim() || "admin"}</strong>
+              <small>{status === "restored" ? "Session restored from this browser." : "Session stored for this browser session."}</small>
+            </div>
+          ) : null}
           <div className="admin-side-actions">
             <button
               className="admin-side-button"
@@ -696,6 +910,9 @@ function AdminPage() {
             </div>
           </div>
         </header>
+
+        {flashMessage ? <div className="admin-flash-message">{flashMessage}</div> : null}
+        {isSignedIn && error ? <div className="admin-inline-warning">{error}</div> : null}
 
         {!isSignedIn ? (
           <section className="admin-login-layout">
