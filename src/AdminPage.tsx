@@ -42,6 +42,9 @@ interface AdminOverview {
 
 type AdminSection = "overview" | "users" | "sales";
 type FetchStatus = "idle" | "restored" | "authenticated" | "refresh_failed" | "expired";
+type DateRangeFilter = "all" | "7d" | "30d" | "90d";
+type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "name_asc" | "email_asc";
+type OrderSortKey = "createdAt_desc" | "createdAt_asc" | "price_desc" | "price_asc" | "status_asc" | "customer_asc";
 
 const STORAGE_KEY = "richai_admin_credentials";
 const apiBase = (import.meta.env.VITE_APP_API_URL || "/api").replace(/\/$/, "");
@@ -79,6 +82,31 @@ const formatCurrency = (value: number) =>
     currency: "MYR",
     minimumFractionDigits: 2
   }).format(value || 0);
+
+const getDateRangeThreshold = (range: DateRangeFilter) => {
+  if (range === "all") return null;
+
+  const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
+  return Date.now() - days * 24 * 60 * 60 * 1000;
+};
+
+const normalizeCsvValue = (value: string | number | null | undefined) => {
+  const raw = value == null ? "" : String(value);
+  return `"${raw.replace(/"/g, '""')}"`;
+};
+
+const triggerCsvDownload = (filename: string, rows: Array<Array<string | number | null | undefined>>) => {
+  const csv = rows.map((row) => row.map((value) => normalizeCsvValue(value)).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
 
 const getProviderLabel = (value: string) => {
   if (value === "password") return "Password";
@@ -145,8 +173,12 @@ function AdminPage() {
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [usersQuery, setUsersQuery] = useState("");
   const [usersProviderFilter, setUsersProviderFilter] = useState("all");
+  const [usersDateRange, setUsersDateRange] = useState<DateRangeFilter>("all");
+  const [usersSort, setUsersSort] = useState<UserSortKey>("createdAt_desc");
   const [salesQuery, setSalesQuery] = useState("");
   const [salesStatusFilter, setSalesStatusFilter] = useState("all");
+  const [salesDateRange, setSalesDateRange] = useState<DateRangeFilter>("all");
+  const [salesSort, setSalesSort] = useState<OrderSortKey>("createdAt_desc");
   const [copiedField, setCopiedField] = useState("");
 
   const recentUsers = useMemo(() => dashboard?.users.slice(0, 5) || [], [dashboard]);
@@ -163,8 +195,12 @@ function AdminPage() {
     if (!dashboard?.users.length) return [];
 
     const query = usersQuery.trim().toLowerCase();
-    return dashboard.users.filter((user) => {
+    const threshold = getDateRangeThreshold(usersDateRange);
+
+    return dashboard.users
+      .filter((user) => {
       const matchesProvider = usersProviderFilter === "all" || user.provider === usersProviderFilter;
+      const matchesDate = !threshold || user.createdAt >= threshold;
       const matchesQuery =
         !query ||
         user.name?.toLowerCase().includes(query) ||
@@ -172,15 +208,34 @@ function AdminPage() {
         user.country?.toLowerCase().includes(query) ||
         user.id.toLowerCase().includes(query);
 
-      return matchesProvider && Boolean(matchesQuery);
-    });
-  }, [dashboard, usersProviderFilter, usersQuery]);
+      return matchesProvider && matchesDate && Boolean(matchesQuery);
+    })
+      .sort((left, right) => {
+        switch (usersSort) {
+          case "createdAt_asc":
+            return left.createdAt - right.createdAt;
+          case "lastLoginAt_desc":
+            return right.lastLoginAt - left.lastLoginAt;
+          case "name_asc":
+            return (left.name || "").localeCompare(right.name || "");
+          case "email_asc":
+            return (left.email || "").localeCompare(right.email || "");
+          case "createdAt_desc":
+          default:
+            return right.createdAt - left.createdAt;
+        }
+      });
+  }, [dashboard, usersDateRange, usersProviderFilter, usersQuery, usersSort]);
   const filteredOrders = useMemo(() => {
     if (!dashboard?.orders.length) return [];
 
     const query = salesQuery.trim().toLowerCase();
-    return dashboard.orders.filter((order) => {
+    const threshold = getDateRangeThreshold(salesDateRange);
+
+    return dashboard.orders
+      .filter((order) => {
       const matchesStatus = salesStatusFilter === "all" || order.status === salesStatusFilter;
+      const matchesDate = !threshold || order.createdAt >= threshold;
       const matchesQuery =
         !query ||
         order.orderNumber.toLowerCase().includes(query) ||
@@ -190,9 +245,61 @@ function AdminPage() {
         order.planLabel?.toLowerCase().includes(query) ||
         order.id.toLowerCase().includes(query);
 
-      return matchesStatus && Boolean(matchesQuery);
-    });
-  }, [dashboard, salesQuery, salesStatusFilter]);
+      return matchesStatus && matchesDate && Boolean(matchesQuery);
+    })
+      .sort((left, right) => {
+        switch (salesSort) {
+          case "createdAt_asc":
+            return left.createdAt - right.createdAt;
+          case "price_desc":
+            return right.price - left.price;
+          case "price_asc":
+            return left.price - right.price;
+          case "status_asc":
+            return left.status.localeCompare(right.status);
+          case "customer_asc":
+            return (left.customerName || left.userEmail || "").localeCompare(right.customerName || right.userEmail || "");
+          case "createdAt_desc":
+          default:
+            return right.createdAt - left.createdAt;
+        }
+      });
+  }, [dashboard, salesDateRange, salesQuery, salesSort, salesStatusFilter]);
+  const overviewStats = useMemo(() => {
+    if (!dashboard) {
+      return {
+        newUsers7d: 0,
+        users30d: 0,
+        paidOrders30d: 0,
+        failedOrders30d: 0,
+        revenue30d: 0,
+        averageOrderValue: 0
+      };
+    }
+
+    const last7Days = getDateRangeThreshold("7d") ?? 0;
+    const last30Days = getDateRangeThreshold("30d") ?? 0;
+    const recentUsers7d = dashboard.users.filter((user) => user.createdAt >= last7Days);
+    const recentUsers30d = dashboard.users.filter((user) => user.createdAt >= last30Days);
+    const recentOrders30d = dashboard.orders.filter((order) => order.createdAt >= last30Days);
+    const paidOrders30d = recentOrders30d.filter((order) =>
+      ["paid", "completed", "succeeded"].includes(order.status.trim().toLowerCase())
+    );
+    const failedOrders30d = recentOrders30d.filter((order) =>
+      ["failed", "cancelled"].includes(order.status.trim().toLowerCase())
+    );
+    const revenue30d = paidOrders30d.reduce((sum, order) => sum + order.price, 0);
+    const averageOrderValue = dashboard.stats.totalSales ? dashboard.stats.totalRevenue / dashboard.stats.totalSales : 0;
+
+    return {
+      newUsers7d: recentUsers7d.length,
+      users30d: recentUsers30d.length,
+      paidOrders30d: paidOrders30d.length,
+      failedOrders30d: failedOrders30d.length,
+      revenue30d,
+      averageOrderValue
+    };
+  }, [dashboard]);
 
   const selectedUser = useMemo(() => {
     if (!filteredUsers.length) return null;
@@ -359,6 +466,40 @@ function AdminPage() {
     setCopiedField(didCopy ? label : "");
   };
 
+  const exportUsersCsv = () => {
+    triggerCsvDownload("admin-users.csv", [
+      ["User ID", "Name", "Email", "Provider", "Country", "Registered", "Last Login"],
+      ...filteredUsers.map((user) => [
+        user.id,
+        user.name || "",
+        user.email || "",
+        getProviderLabel(user.provider),
+        user.country || "",
+        formatDate(user.createdAt),
+        formatDate(user.lastLoginAt)
+      ])
+    ]);
+  };
+
+  const exportOrdersCsv = () => {
+    triggerCsvDownload("admin-sales.csv", [
+      ["Order ID", "Order Number", "Customer", "User Email", "User ID", "Plan", "Payment Method", "Status", "Total", "Created", "Source"],
+      ...filteredOrders.map((order) => [
+        order.id,
+        order.orderNumber,
+        order.customerName || "",
+        order.userEmail || "",
+        order.userId || "",
+        order.planLabel || order.plan,
+        order.paymentMethod || "",
+        order.status,
+        order.price,
+        formatDate(order.createdAt),
+        order.source || ""
+      ])
+    ]);
+  };
+
   const renderOverview = () => (
     <div className="admin-section-stack">
       <section className="admin-kpi-grid">
@@ -376,6 +517,24 @@ function AdminPage() {
           <span className="admin-kpi-label">Revenue tracked</span>
           <strong>{formatCurrency(dashboard?.stats.totalRevenue ?? 0)}</strong>
           <small>Current app-side order records</small>
+        </article>
+      </section>
+
+      <section className="admin-kpi-grid admin-kpi-grid-secondary">
+        <article className="admin-kpi-card">
+          <span className="admin-kpi-label">New users, 7 days</span>
+          <strong>{overviewStats.newUsers7d}</strong>
+          <small>{overviewStats.users30d} registrations in the last 30 days</small>
+        </article>
+        <article className="admin-kpi-card">
+          <span className="admin-kpi-label">Paid orders, 30 days</span>
+          <strong>{overviewStats.paidOrders30d}</strong>
+          <small>{overviewStats.failedOrders30d} failed or cancelled in the same period</small>
+        </article>
+        <article className="admin-kpi-card">
+          <span className="admin-kpi-label">Revenue, 30 days</span>
+          <strong>{formatCurrency(overviewStats.revenue30d)}</strong>
+          <small>Average order value: {formatCurrency(overviewStats.averageOrderValue)}</small>
         </article>
       </section>
 
@@ -515,6 +674,34 @@ function AdminPage() {
                 ))}
               </select>
             </label>
+            <label className="admin-control-field">
+              <span>Date range</span>
+              <select
+                value={usersDateRange}
+                onChange={(event) => setUsersDateRange(event.target.value as DateRangeFilter)}
+              >
+                <option value="all">All time</option>
+                <option value="7d">Last 7 days</option>
+                <option value="30d">Last 30 days</option>
+                <option value="90d">Last 90 days</option>
+              </select>
+            </label>
+            <label className="admin-control-field">
+              <span>Sort by</span>
+              <select
+                value={usersSort}
+                onChange={(event) => setUsersSort(event.target.value as UserSortKey)}
+              >
+                <option value="createdAt_desc">Newest registrations</option>
+                <option value="createdAt_asc">Oldest registrations</option>
+                <option value="lastLoginAt_desc">Latest login</option>
+                <option value="name_asc">Name A-Z</option>
+                <option value="email_asc">Email A-Z</option>
+              </select>
+            </label>
+            <button type="button" className="admin-link-button" onClick={exportUsersCsv} disabled={!filteredUsers.length}>
+              Export CSV
+            </button>
             <span className="admin-filter-summary">
               Showing {filteredUsers.length} of {dashboard?.users.length ?? 0}
             </span>
@@ -652,11 +839,11 @@ function AdminPage() {
                   placeholder="Order, customer, email, plan, or order ID"
                 />
               </label>
-              <label className="admin-control-field">
-                <span>Status</span>
-                <select
-                  value={salesStatusFilter}
-                  onChange={(event) => setSalesStatusFilter(event.target.value)}
+            <label className="admin-control-field">
+              <span>Status</span>
+              <select
+                value={salesStatusFilter}
+                onChange={(event) => setSalesStatusFilter(event.target.value)}
                 >
                   <option value="all">All statuses</option>
                   {salesStatusOptions.map((statusOption) => (
@@ -666,6 +853,35 @@ function AdminPage() {
                   ))}
                 </select>
               </label>
+              <label className="admin-control-field">
+                <span>Date range</span>
+                <select
+                  value={salesDateRange}
+                  onChange={(event) => setSalesDateRange(event.target.value as DateRangeFilter)}
+                >
+                  <option value="all">All time</option>
+                  <option value="7d">Last 7 days</option>
+                  <option value="30d">Last 30 days</option>
+                  <option value="90d">Last 90 days</option>
+                </select>
+              </label>
+              <label className="admin-control-field">
+                <span>Sort by</span>
+                <select
+                  value={salesSort}
+                  onChange={(event) => setSalesSort(event.target.value as OrderSortKey)}
+                >
+                  <option value="createdAt_desc">Newest orders</option>
+                  <option value="createdAt_asc">Oldest orders</option>
+                  <option value="price_desc">Highest value</option>
+                  <option value="price_asc">Lowest value</option>
+                  <option value="status_asc">Status A-Z</option>
+                  <option value="customer_asc">Customer A-Z</option>
+                </select>
+              </label>
+              <button type="button" className="admin-link-button" onClick={exportOrdersCsv} disabled={!filteredOrders.length}>
+                Export CSV
+              </button>
               <span className="admin-filter-summary">
                 Showing {filteredOrders.length} of {dashboard?.orders.length ?? 0}
               </span>
