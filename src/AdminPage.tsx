@@ -219,9 +219,19 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
 
   if (transient && !authFailure) {
     try {
-      return await fetch(`${directApiBase}/admin/overview`, {
+      const upstreamResponse = await fetch(`${directApiBase}/admin/overview`, {
         headers: authHeader
       });
+
+      if (upstreamResponse.ok) {
+        return upstreamResponse;
+      }
+
+      if (upstreamResponse.status === 401 || upstreamResponse.status === 403) {
+        // Keep transient error as primary cause when site routes are unavailable.
+      } else if (!transientStatuses.has(upstreamResponse.status)) {
+        return upstreamResponse;
+      }
     } catch {
       // Keep transient response handling below.
     }
