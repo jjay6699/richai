@@ -47,6 +47,7 @@ type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "na
 type OrderSortKey = "createdAt_desc" | "createdAt_asc" | "price_desc" | "price_asc" | "status_asc" | "customer_asc";
 
 const apiBase = (import.meta.env.VITE_APP_API_URL || "/api").replace(/\/$/, "");
+const directApiBase = (import.meta.env.VITE_ADMIN_DIRECT_API_URL || "https://healthai.up.railway.app/api").replace(/\/$/, "");
 const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; description: string }> = [
   { id: "overview", label: "Overview", shortLabel: "OV", description: "Key operational snapshot" },
   { id: "users", label: "Users", shortLabel: "US", description: "App registrations and account activity" },
@@ -201,6 +202,16 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
 
     if (round < 2) {
       await wait(350 + round * 250);
+    }
+  }
+
+  if (transient && !authFailure) {
+    try {
+      return await fetch(`${directApiBase}/admin/overview`, {
+        headers: authHeader
+      });
+    } catch {
+      // Keep transient response handling below.
     }
   }
 
