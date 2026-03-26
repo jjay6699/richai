@@ -113,7 +113,7 @@ const proxyAdminOverviewWithBroker = async (request, response) => {
 
   headers.set("Authorization", `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`);
 
-  const upstream = await fetch(`${backendBase}/admin/overview`, {
+  const upstream = await fetch(`${backendBase}/api/admin/overview`, {
     method: "GET",
     headers
   });
