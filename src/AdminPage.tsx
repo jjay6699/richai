@@ -177,21 +177,76 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
   const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword) };
   const transientStatuses = new Set([429, 500, 502, 503, 504]);
   const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
-  let lastResponse: Response | null = null;
-  let lastError: unknown = null;
+  let lastProxyResponse: Response | null = null;
+  let sawProxyAuthFailure = false;
+
+  const proxyRequests: Array<() => Promise<Response>> = [
+    () =>
+      fetch(`${apiBase}/admin/overview-auth`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: nextUsername, password: nextPassword })
+      }),
+    () =>
+      fetch(`${apiBase}/admin/overview`, {
+        headers: authHeader
+      })
+  ];
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    for (const run of proxyRequests) {
+      try {
+        const response = await run();
+        lastProxyResponse = response;
+
+        if (response.ok) {
+          return response;
+        }
+
+        if (response.status === 401 || response.status === 403) {
+          sawProxyAuthFailure = true;
+        }
+      } catch {
+        // Continue to next strategy.
+      }
+    }
+
+    if (attempt < 1) {
+      await wait(300);
+    }
+  }
+
+  if (sawProxyAuthFailure && lastProxyResponse) {
+    return lastProxyResponse;
+  }
+
+  let lastUpstreamError: unknown = null;
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const response = await fetch(`${directApiBase}/admin/overview`, {
         headers: authHeader
       });
-      lastResponse = response;
+      if (response.ok) {
+        return response;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        if (lastProxyResponse && transientStatuses.has(lastProxyResponse.status)) {
+          return lastProxyResponse;
+        }
+        return response;
+      }
 
       if (!transientStatuses.has(response.status)) {
         return response;
       }
+
+      if (attempt === 2) {
+        return response;
+      }
     } catch (error) {
-      lastError = error;
+      lastUpstreamError = error;
     }
 
     if (attempt < 2) {
@@ -199,8 +254,8 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
     }
   }
 
-  if (lastResponse) return lastResponse;
-  throw lastError instanceof Error ? lastError : new TypeError("Unable to reach the admin service.");
+  if (lastProxyResponse) return lastProxyResponse;
+  throw lastUpstreamError instanceof Error ? lastUpstreamError : new TypeError("Unable to reach the admin service.");
 };
 
 function AdminPage() {
