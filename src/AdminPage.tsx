@@ -46,7 +46,6 @@ type DateRangeFilter = "all" | "7d" | "30d" | "90d";
 type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "name_asc" | "email_asc";
 type OrderSortKey = "createdAt_desc" | "createdAt_asc" | "price_desc" | "price_asc" | "status_asc" | "customer_asc";
 
-const STORAGE_KEY = "richai_admin_credentials";
 const apiBase = (import.meta.env.VITE_APP_API_URL || "/api").replace(/\/$/, "");
 const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; description: string }> = [
   { id: "overview", label: "Overview", shortLabel: "OV", description: "Key operational snapshot" },
@@ -182,6 +181,9 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
 function AdminPage() {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
+  const [captchaLeft, setCaptchaLeft] = useState(() => Math.floor(Math.random() * 9) + 1);
+  const [captchaRight, setCaptchaRight] = useState(() => Math.floor(Math.random() * 9) + 1);
+  const [captchaInput, setCaptchaInput] = useState("");
   const [dashboard, setDashboard] = useState<AdminOverview | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -423,7 +425,15 @@ function AdminPage() {
 
   const sectionMeta = getSectionMeta(activeSection, dashboard, lastSyncedAt);
   const isSignedIn = Boolean(dashboard);
-  const canSubmit = username.trim().length > 0 && password.trim().length > 0;
+  const captchaAnswer = captchaLeft + captchaRight;
+  const isCaptchaValid = Number(captchaInput.trim()) === captchaAnswer;
+  const canSubmit = username.trim().length > 0 && password.trim().length > 0 && isCaptchaValid;
+
+  const refreshCaptcha = () => {
+    setCaptchaLeft(Math.floor(Math.random() * 9) + 1);
+    setCaptchaRight(Math.floor(Math.random() * 9) + 1);
+    setCaptchaInput("");
+  };
 
   const fetchDashboard = async (
     nextUsername: string,
@@ -448,10 +458,6 @@ function AdminPage() {
         );
       }
 
-      window.sessionStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ username: nextUsername, password: nextPassword })
-      );
       setDashboard(payload as AdminOverview);
       setLastSyncedAt(Date.now());
       setSelectedUserId((payload as AdminOverview).users[0]?.id || null);
@@ -475,7 +481,6 @@ function AdminPage() {
       const isAuthError = nextMessage === "Invalid admin username or password.";
 
       if (isAuthError) {
-        window.sessionStorage.removeItem(STORAGE_KEY);
         setDashboard(null);
         setSelectedUserId(null);
         setSelectedOrderId(null);
@@ -496,22 +501,6 @@ function AdminPage() {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    const stored = window.sessionStorage.getItem(STORAGE_KEY);
-    if (!stored) return;
-
-    try {
-      const parsed = JSON.parse(stored) as { username?: string; password?: string };
-      if (parsed.username) setUsername(parsed.username);
-      if (parsed.password) {
-        setPassword(parsed.password);
-        void fetchDashboard(parsed.username || "admin", parsed.password, { preserveSection: true, restoredSession: true });
-      }
-    } catch {
-      window.sessionStorage.removeItem(STORAGE_KEY);
-    }
-  }, []);
 
   useEffect(() => {
     if (filteredUsers.length && !filteredUsers.some((user) => user.id === selectedUserId)) {
@@ -541,6 +530,13 @@ function AdminPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (!isCaptchaValid) {
+      setError("Please solve the security question correctly.");
+      refreshCaptcha();
+      return;
+    }
+
     await fetchDashboard(username.trim(), password);
   };
 
@@ -549,7 +545,6 @@ function AdminPage() {
   };
 
   const handleLogout = () => {
-    window.sessionStorage.removeItem(STORAGE_KEY);
     setPassword("");
     setDashboard(null);
     setError("");
@@ -559,6 +554,7 @@ function AdminPage() {
     setSelectedOrderId(null);
     setLastSyncedAt(null);
     setActiveSection("overview");
+    refreshCaptcha();
   };
 
   const handleCopy = async (label: string, value: string | null | undefined) => {
@@ -1230,6 +1226,106 @@ function AdminPage() {
       </section>
     </div>
   );
+
+  if (!isSignedIn) {
+    return (
+      <main className="admin-content admin-content-auth-only">
+        <header className="admin-content-header">
+          <div className="admin-title-group">
+            <p className="admin-content-kicker">Overview</p>
+            <div className="admin-title-row">
+              <h2>Admin access</h2>
+              <span className="admin-title-badge">Protected route</span>
+            </div>
+            <p className="admin-content-copy">
+              Sign in with your admin credentials to access registrations, sales, and operational reporting from the app service.
+            </p>
+          </div>
+
+          <div className="admin-toolbar">
+            <div className="admin-toolbar-card">
+              <span>API source</span>
+              <strong>{apiBase}</strong>
+            </div>
+            <div className="admin-toolbar-card">
+              <span>Connection</span>
+              <strong>Not connected</strong>
+            </div>
+          </div>
+        </header>
+
+        <section className="admin-login-layout">
+          <article className="admin-login-panel">
+            <div className="admin-login-panel-head">
+              <p className="admin-panel-kicker">Protected access</p>
+              <h3>Sign in to unlock the control room</h3>
+              <p>
+                The website does not store app data. It only fetches operational data from the app service after successful admin authentication.
+              </p>
+            </div>
+
+            <form className="admin-login-form" onSubmit={handleSubmit}>
+              <label className="admin-input-field">
+                <span>Username</span>
+                <input
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  autoComplete="username"
+                  placeholder="Enter admin username"
+                />
+              </label>
+
+              <label className="admin-input-field">
+                <span>Password</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="current-password"
+                  placeholder="Enter admin password"
+                />
+              </label>
+
+              <label className="admin-input-field">
+                <span>Security check: {captchaLeft} + {captchaRight} = ?</span>
+                <input
+                  inputMode="numeric"
+                  value={captchaInput}
+                  onChange={(event) => setCaptchaInput(event.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="Enter answer"
+                />
+              </label>
+
+              {error ? <p className="admin-inline-error">{error}</p> : null}
+
+              <button className="admin-submit-button" type="submit" disabled={!canSubmit || isLoading}>
+                {isLoading ? "Checking access..." : "Open dashboard"}
+              </button>
+            </form>
+          </article>
+
+          <article className="admin-login-note">
+            <p className="admin-panel-kicker">What becomes available</p>
+            <h3>Live operational visibility</h3>
+            <div className="admin-note-list">
+              <div className="admin-note-item">
+                <strong>Registrations</strong>
+                <span>Inspect app signups, providers, countries, and latest login activity.</span>
+              </div>
+              <div className="admin-note-item">
+                <strong>Sales</strong>
+                <span>Track order creation, payment method choice, order status, and revenue totals.</span>
+              </div>
+              <div className="admin-note-item">
+                <strong>Refreshable sync</strong>
+                <span>Reload the app admin feed without leaving the panel.</span>
+              </div>
+            </div>
+          </article>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <div className="admin-workspace">
