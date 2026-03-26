@@ -40,8 +40,8 @@ function AppDownloadModal({ isOpen, onClose }: AppDownloadModalProps) {
         <p className="app-download-modal-kicker">Get the RicHealth AI app</p>
         <h3 id="app-download-modal-title">Start your health journey on mobile</h3>
         <p>
-          Download the app from the Apple App Store or Google Play Store. You can also open the direct mobile link
-          below.
+          Download the app from the Apple App Store or Google Play Store. You can also open the RicHealth web app on
+          your phone.
         </p>
 
         <div className="app-download-modal-actions">
@@ -53,8 +53,8 @@ function AppDownloadModal({ isOpen, onClose }: AppDownloadModalProps) {
           </a>
         </div>
 
-        <a className="app-download-modal-link" href="https://app.richealth.ai/" target="_blank" rel="noreferrer">
-          https://app.richealth.ai/
+        <a className="app-download-modal-open-web" href="https://app.richealth.ai/" target="_blank" rel="noreferrer">
+          Open RicHealth Web App
         </a>
 
         <button type="button" className="app-download-modal-close" onClick={onClose}>

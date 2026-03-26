@@ -1158,7 +1158,7 @@
 }
 
 .app-download-modal-actions a,
-.app-download-modal-link,
+.app-download-modal-open-web,
 .app-download-modal-close {
   display: inline-flex;
   align-items: center;
@@ -1179,12 +1179,12 @@
   color: var(--text);
 }
 
-.app-download-modal-link {
+.app-download-modal-open-web {
   width: 100%;
   margin-top: 0.75rem;
   border: 1px solid rgba(145, 94, 52, 0.2);
-  background: rgba(244, 236, 225, 0.6);
-  color: var(--accent-dark);
+  background: var(--brand-gradient);
+  color: var(--text-inverse);
 }
 
 .app-download-modal-close {
@@ -1195,7 +1195,7 @@
 }
 
 .app-download-modal-actions a:hover,
-.app-download-modal-link:hover,
+.app-download-modal-open-web:hover,
 .app-download-modal-close:hover {
   transform: translateY(-1px);
   box-shadow: 0 10px 20px rgba(44, 37, 29, 0.1);
@@ -3640,4 +3640,3 @@
     padding: 0.95rem 1rem;
   }
 }
-
