@@ -46,6 +46,8 @@ type DateRangeFilter = "all" | "7d" | "30d" | "90d";
 type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "name_asc" | "email_asc";
 type OrderSortKey = "createdAt_desc" | "createdAt_asc" | "price_desc" | "price_asc" | "status_asc" | "customer_asc";
 
+const STORAGE_KEY = "richai_admin_credentials";
+const DASHBOARD_CACHE_KEY = "richai_admin_dashboard_cache";
 const apiBase = (import.meta.env.VITE_APP_API_URL || "/api").replace(/\/$/, "");
 const directApiBase = (import.meta.env.VITE_ADMIN_DIRECT_API_URL || "https://healthai.up.railway.app/api").replace(/\/$/, "");
 const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; description: string }> = [
@@ -517,11 +519,21 @@ function AdminPage() {
           response.status === 401 ||
           response.status === 403 ||
           (payload && "error" in payload && payload.error === "admin_auth_required");
+        const transientFailure = [429, 500, 502, 503, 504].includes(response.status);
         throw new Error(
-          authFailure ? "Invalid admin username or password." : "Unable to load dashboard."
+          authFailure
+            ? "Invalid admin username or password."
+            : transientFailure
+              ? "Admin service is temporarily unavailable."
+              : "Unable to load dashboard."
         );
       }
 
+      window.sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ username: nextUsername, password: nextPassword })
+      );
+      window.sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(payload));
       setDashboard(payload as AdminOverview);
       setLastSyncedAt(Date.now());
       setSelectedUserId((payload as AdminOverview).users[0]?.id || null);
@@ -567,6 +579,39 @@ function AdminPage() {
   };
 
   useEffect(() => {
+    const cachedDashboard = window.sessionStorage.getItem(DASHBOARD_CACHE_KEY);
+    if (cachedDashboard) {
+      try {
+        const parsedCache = JSON.parse(cachedDashboard) as AdminOverview;
+        if (parsedCache?.stats && Array.isArray(parsedCache?.users) && Array.isArray(parsedCache?.orders)) {
+          setDashboard(parsedCache);
+          setLastSyncedAt(Date.now());
+          setSelectedUserId(parsedCache.users[0]?.id || null);
+          setSelectedOrderId(parsedCache.orders[0]?.id || null);
+          setStatus("refresh_failed");
+          setFlashMessage("Loaded last synced admin data. Re-authenticating...");
+        }
+      } catch {
+        window.sessionStorage.removeItem(DASHBOARD_CACHE_KEY);
+      }
+    }
+
+    const stored = window.sessionStorage.getItem(STORAGE_KEY);
+    if (!stored) return;
+
+    try {
+      const parsed = JSON.parse(stored) as { username?: string; password?: string };
+      if (parsed.username) setUsername(parsed.username);
+      if (parsed.password) {
+        setPassword(parsed.password);
+        void fetchDashboard(parsed.username || "admin", parsed.password, { preserveSection: true, restoredSession: true });
+      }
+    } catch {
+      window.sessionStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
     if (filteredUsers.length && !filteredUsers.some((user) => user.id === selectedUserId)) {
       setSelectedUserId(filteredUsers[0].id);
     }
@@ -609,6 +654,8 @@ function AdminPage() {
   };
 
   const handleLogout = () => {
+    window.sessionStorage.removeItem(STORAGE_KEY);
+    window.sessionStorage.removeItem(DASHBOARD_CACHE_KEY);
     setPassword("");
     setDashboard(null);
     setError("");
