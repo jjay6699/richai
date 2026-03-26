@@ -159,16 +159,27 @@ const getSectionMeta = (
 };
 
 const requestAdminOverview = async (nextUsername: string, nextPassword: string) => {
-  const brokerResponse = await fetch(`${apiBase}/admin/overview-auth`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ username: nextUsername, password: nextPassword })
-  });
+  try {
+    const brokerResponse = await fetch(`${apiBase}/admin/overview-auth`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ username: nextUsername, password: nextPassword })
+    });
 
-  if (brokerResponse.status !== 404 && brokerResponse.status !== 405) {
-    return brokerResponse;
+    const shouldFallback =
+      brokerResponse.status === 404 ||
+      brokerResponse.status === 405 ||
+      brokerResponse.status === 502 ||
+      brokerResponse.status === 503 ||
+      brokerResponse.status === 504;
+
+    if (!shouldFallback) {
+      return brokerResponse;
+    }
+  } catch {
+    // Fall back to direct /api admin call when broker route is unavailable.
   }
 
   return fetch(`${apiBase}/admin/overview`, {
