@@ -47,7 +47,6 @@ type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "na
 type OrderSortKey = "createdAt_desc" | "createdAt_asc" | "price_desc" | "price_asc" | "status_asc" | "customer_asc";
 
 const apiBase = (import.meta.env.VITE_APP_API_URL || "/api").replace(/\/$/, "");
-const directApiBase = (import.meta.env.VITE_ADMIN_DIRECT_API_URL || "https://healthai.up.railway.app/api").replace(/\/$/, "");
 const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; description: string }> = [
   { id: "overview", label: "Overview", shortLabel: "OV", description: "Key operational snapshot" },
   { id: "users", label: "Users", shortLabel: "US", description: "App registrations and account activity" },
@@ -162,46 +161,51 @@ const getSectionMeta = (
 const requestAdminOverview = async (nextUsername: string, nextPassword: string) => {
   const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword) };
   const transientStatuses = new Set([429, 500, 502, 503, 504]);
+  const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
-  const requests: Array<() => Promise<Response>> = [
-    () =>
-      fetch(`${apiBase}/admin/overview-auth`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: nextUsername, password: nextPassword })
-      }),
-    () =>
-      fetch(`${apiBase}/admin/overview`, {
-        headers: authHeader
-      }),
-    () =>
-      fetch(`${directApiBase}/admin/overview`, {
-        headers: authHeader
-      })
-  ];
+  const viaBroker = () =>
+    fetch(`${apiBase}/admin/overview-auth`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: nextUsername, password: nextPassword })
+    });
 
-  const responses: Response[] = [];
+  const viaProxy = () =>
+    fetch(`${apiBase}/admin/overview`, {
+      headers: authHeader
+    });
+
+  let transient: Response | null = null;
+  let authFailure: Response | null = null;
   let networkError: unknown = null;
 
-  for (const run of requests) {
-    try {
-      const response = await run();
-      responses.push(response);
-      if (response.ok) return response;
-    } catch (error) {
-      networkError = error;
+  for (let round = 0; round < 3; round += 1) {
+    const roundRequests: Array<() => Promise<Response>> = [viaBroker, viaProxy];
+
+    for (const run of roundRequests) {
+      try {
+        const response = await run();
+        if (response.ok) return response;
+
+        if (response.status === 401 || response.status === 403) {
+          authFailure = response;
+        } else if (transientStatuses.has(response.status)) {
+          transient = response;
+        } else {
+          return response;
+        }
+      } catch (error) {
+        networkError = error;
+      }
+    }
+
+    if (round < 2) {
+      await wait(350 + round * 250);
     }
   }
 
-  const transient = responses.find((response) => transientStatuses.has(response.status));
   if (transient) return transient;
-
-  const authFailures = responses.filter((response) => response.status === 401 || response.status === 403);
-  if (authFailures.length === responses.length && authFailures.length > 0) {
-    return authFailures[0];
-  }
-
-  if (responses.length > 0) return responses[0];
+  if (authFailure) return authFailure;
   throw networkError instanceof Error ? networkError : new TypeError("Unable to reach the admin service.");
 };
 
