@@ -177,71 +177,30 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
   const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword) };
   const transientStatuses = new Set([429, 500, 502, 503, 504]);
   const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+  let lastResponse: Response | null = null;
+  let lastError: unknown = null;
 
-  const viaBroker = () =>
-    fetch(`${apiBase}/admin/overview-auth`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: nextUsername, password: nextPassword })
-    });
-
-  const viaProxy = () =>
-    fetch(`${apiBase}/admin/overview`, {
-      headers: authHeader
-    });
-
-  let transient: Response | null = null;
-  let authFailure: Response | null = null;
-  let networkError: unknown = null;
-
-  for (let round = 0; round < 3; round += 1) {
-    const roundRequests: Array<() => Promise<Response>> = [viaBroker, viaProxy];
-
-    for (const run of roundRequests) {
-      try {
-        const response = await run();
-        if (response.ok) return response;
-
-        if (response.status === 401 || response.status === 403) {
-          authFailure = response;
-        } else if (transientStatuses.has(response.status)) {
-          transient = response;
-        } else {
-          return response;
-        }
-      } catch (error) {
-        networkError = error;
-      }
-    }
-
-    if (round < 2) {
-      await wait(350 + round * 250);
-    }
-  }
-
-  if (transient && !authFailure) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      const upstreamResponse = await fetch(`${directApiBase}/admin/overview`, {
+      const response = await fetch(`${directApiBase}/admin/overview`, {
         headers: authHeader
       });
+      lastResponse = response;
 
-      if (upstreamResponse.ok) {
-        return upstreamResponse;
+      if (!transientStatuses.has(response.status)) {
+        return response;
       }
+    } catch (error) {
+      lastError = error;
+    }
 
-      if (upstreamResponse.status === 401 || upstreamResponse.status === 403) {
-        // Keep transient error as primary cause when site routes are unavailable.
-      } else if (!transientStatuses.has(upstreamResponse.status)) {
-        return upstreamResponse;
-      }
-    } catch {
-      // Keep transient response handling below.
+    if (attempt < 2) {
+      await wait(300 + attempt * 250);
     }
   }
 
-  if (transient) return transient;
-  if (authFailure) return authFailure;
-  throw networkError instanceof Error ? networkError : new TypeError("Unable to reach the admin service.");
+  if (lastResponse) return lastResponse;
+  throw lastError instanceof Error ? lastError : new TypeError("Unable to reach the admin service.");
 };
 
 function AdminPage() {
