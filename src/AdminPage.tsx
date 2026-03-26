@@ -159,8 +159,11 @@ const getSectionMeta = (
 };
 
 const requestAdminOverview = async (nextUsername: string, nextPassword: string) => {
-  try {
-    const brokerResponse = await fetch(`${apiBase}/admin/overview-auth`, {
+  const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+  const retryableStatuses = new Set([404, 405, 429, 500, 502, 503, 504]);
+
+  const requestViaBroker = () =>
+    fetch(`${apiBase}/admin/overview-auth`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -168,25 +171,39 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
       body: JSON.stringify({ username: nextUsername, password: nextPassword })
     });
 
-    const shouldFallback =
-      brokerResponse.status === 404 ||
-      brokerResponse.status === 405 ||
-      brokerResponse.status === 502 ||
-      brokerResponse.status === 503 ||
-      brokerResponse.status === 504;
+  const requestDirect = () =>
+    fetch(`${apiBase}/admin/overview`, {
+      headers: {
+        Authorization: encodeBasicAuth(nextUsername, nextPassword)
+      }
+    });
 
-    if (!shouldFallback) {
-      return brokerResponse;
+  const strategies: Array<() => Promise<Response>> = [requestViaBroker, requestDirect, requestViaBroker, requestDirect];
+  let lastResponse: Response | null = null;
+  let lastError: unknown = null;
+
+  for (let index = 0; index < strategies.length; index += 1) {
+    try {
+      const response = await strategies[index]();
+      lastResponse = response;
+
+      if (!retryableStatuses.has(response.status)) {
+        return response;
+      }
+    } catch (error) {
+      lastError = error;
     }
-  } catch {
-    // Fall back to direct /api admin call when broker route is unavailable.
+
+    if (index < strategies.length - 1) {
+      await wait(250 + index * 150);
+    }
   }
 
-  return fetch(`${apiBase}/admin/overview`, {
-    headers: {
-      Authorization: encodeBasicAuth(nextUsername, nextPassword)
-    }
-  });
+  if (lastResponse) {
+    return lastResponse;
+  }
+
+  throw lastError instanceof Error ? lastError : new TypeError("Unable to reach the admin service.");
 };
 
 function AdminPage() {
