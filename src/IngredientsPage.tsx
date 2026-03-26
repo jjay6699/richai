@@ -402,7 +402,7 @@ function IngredientsPage() {
               <div className="site-footer-column">
                 <span className="site-footer-heading">Reach us</span>
                 <a href="mailto:hello@richealth.ai">hello@richealth.ai</a>
-                <a href="tel:+60000000000">+60 00-000 0000</a>
+                <a href="tel:+60164476899">+60164476899</a>
                 <span className="site-footer-meta">Mon to Fri, 9:00 AM to 6:00 PM</span>
               </div>
             </div>
