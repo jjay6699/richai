@@ -159,6 +159,26 @@ const getSectionMeta = (
   };
 };
 
+const requestAdminOverview = async (nextUsername: string, nextPassword: string) => {
+  const brokerResponse = await fetch(`${apiBase}/admin/overview-auth`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ username: nextUsername, password: nextPassword })
+  });
+
+  if (brokerResponse.status !== 404 && brokerResponse.status !== 405) {
+    return brokerResponse;
+  }
+
+  return fetch(`${apiBase}/admin/overview`, {
+    headers: {
+      Authorization: encodeBasicAuth(nextUsername, nextPassword)
+    }
+  });
+};
+
 function AdminPage() {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
@@ -415,11 +435,7 @@ function AdminPage() {
     setFlashMessage("");
 
     try {
-      const response = await fetch(`${apiBase}/admin/overview`, {
-        headers: {
-          Authorization: encodeBasicAuth(nextUsername, nextPassword)
-        }
-      });
+      const response = await requestAdminOverview(nextUsername, nextPassword);
 
       const payload = (await response.json().catch(() => null)) as AdminOverview | { error?: string } | null;
       if (!response.ok || !payload || ("error" in payload && typeof payload.error === "string")) {

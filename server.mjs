@@ -32,6 +32,22 @@ const sendFile = async (response, filePath) => {
   createReadStream(filePath).pipe(response);
 };
 
+const readJsonBody = async (request) => {
+  let raw = "";
+
+  for await (const chunk of request) {
+    raw += chunk;
+  }
+
+  if (!raw.trim()) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
 const proxyApiRequest = async (request, response, pathname, search = "") => {
   const url = `${backendBase}${pathname}${search}`;
   const headers = new Headers();
@@ -66,12 +82,69 @@ const proxyApiRequest = async (request, response, pathname, search = "") => {
   Readable.fromWeb(upstream.body).pipe(response);
 };
 
+const proxyAdminOverviewWithBroker = async (request, response) => {
+  if ((request.method || "GET").toUpperCase() !== "POST") {
+    response.writeHead(405, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ error: "method_not_allowed" }));
+    return;
+  }
+
+  const payload = await readJsonBody(request);
+  const username = typeof payload?.username === "string" ? payload.username.trim() : "";
+  const password = typeof payload?.password === "string" ? payload.password : "";
+
+  if (!username || !password) {
+    response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ error: "admin_auth_required" }));
+    return;
+  }
+
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(request.headers)) {
+    if (!value) continue;
+
+    const normalized = key.toLowerCase();
+    if (normalized === "host" || normalized === "content-length" || normalized === "content-type") {
+      continue;
+    }
+
+    headers.set(key, Array.isArray(value) ? value.join(", ") : value);
+  }
+
+  headers.set("Authorization", `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`);
+
+  const upstream = await fetch(`${backendBase}/admin/overview`, {
+    method: "GET",
+    headers
+  });
+
+  const responseHeaders = {};
+  upstream.headers.forEach((value, key) => {
+    if (key.toLowerCase() === "content-encoding") return;
+    responseHeaders[key] = value;
+  });
+
+  response.writeHead(upstream.status, responseHeaders);
+
+  if (!upstream.body) {
+    response.end();
+    return;
+  }
+
+  Readable.fromWeb(upstream.body).pipe(response);
+};
+
 const server = http.createServer(async (request, response) => {
   try {
     const requestUrl = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`);
     const pathname = requestUrl.pathname;
 
     if (pathname.startsWith("/api/")) {
+      if (pathname === "/api/admin/overview-auth") {
+        await proxyAdminOverviewWithBroker(request, response);
+        return;
+      }
+
       await proxyApiRequest(request, response, pathname, requestUrl.search);
       return;
     }
