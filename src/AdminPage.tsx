@@ -160,35 +160,49 @@ const getSectionMeta = (
 };
 
 const requestAdminOverview = async (nextUsername: string, nextPassword: string) => {
-  const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
   const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword) };
-  const retryableStatuses = new Set([429, 500, 502, 503, 504]);
+  const transientStatuses = new Set([429, 500, 502, 503, 504]);
 
-  let lastResponse: Response | null = null;
-  let lastError: unknown = null;
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const response = await fetch(`${directApiBase}/admin/overview`, {
+  const requests: Array<() => Promise<Response>> = [
+    () =>
+      fetch(`${apiBase}/admin/overview-auth`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: nextUsername, password: nextPassword })
+      }),
+    () =>
+      fetch(`${apiBase}/admin/overview`, {
         headers: authHeader
-      });
+      }),
+    () =>
+      fetch(`${directApiBase}/admin/overview`, {
+        headers: authHeader
+      })
+  ];
 
-      lastResponse = response;
+  const responses: Response[] = [];
+  let networkError: unknown = null;
 
-      if (!retryableStatuses.has(response.status)) {
-        return response;
-      }
+  for (const run of requests) {
+    try {
+      const response = await run();
+      responses.push(response);
+      if (response.ok) return response;
     } catch (error) {
-      lastError = error;
-    }
-
-    if (attempt === 0) {
-      await wait(350);
+      networkError = error;
     }
   }
 
-  if (lastResponse) return lastResponse;
-  throw lastError instanceof Error ? lastError : new TypeError("Unable to reach the admin service.");
+  const transient = responses.find((response) => transientStatuses.has(response.status));
+  if (transient) return transient;
+
+  const authFailures = responses.filter((response) => response.status === 401 || response.status === 403);
+  if (authFailures.length === responses.length && authFailures.length > 0) {
+    return authFailures[0];
+  }
+
+  if (responses.length > 0) return responses[0];
+  throw networkError instanceof Error ? networkError : new TypeError("Unable to reach the admin service.");
 };
 
 function AdminPage() {
