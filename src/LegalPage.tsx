@@ -407,7 +407,6 @@ function LegalPage({ pageType }: LegalPageProps) {
             </motion.p>
 
             <motion.div variants={fadeUp} className="legal-meta-row">
-              <span className="legal-effective-date">{documentContent.effectiveDate}</span>
               <span className="legal-jurisdiction">Jurisdiction: Malaysia</span>
             </motion.div>
 
