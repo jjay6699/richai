@@ -197,6 +197,7 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
   let lastResponse: Response | null = null;
   let authFailureResponse: Response | null = null;
   let nonRetryableResponse: Response | null = null;
+  let transientFailureResponse: Response | null = null;
   let lastError: unknown = null;
 
   for (let index = 0; index < strategies.length; index += 1) {
@@ -210,6 +211,8 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
 
       if (response.status === 401 || response.status === 403) {
         authFailureResponse = response;
+      } else if (retryableStatuses.has(response.status)) {
+        transientFailureResponse = response;
       } else if (!retryableStatuses.has(response.status)) {
         nonRetryableResponse = response;
       }
@@ -229,6 +232,10 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
 
   if (nonRetryableResponse) {
     return nonRetryableResponse;
+  }
+
+  if (transientFailureResponse) {
+    return transientFailureResponse;
   }
 
   if (authFailureResponse) {
