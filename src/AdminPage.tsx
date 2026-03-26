@@ -195,6 +195,8 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
     requestDirectUpstream
   ];
   let lastResponse: Response | null = null;
+  let authFailureResponse: Response | null = null;
+  let nonRetryableResponse: Response | null = null;
   let lastError: unknown = null;
 
   for (let index = 0; index < strategies.length; index += 1) {
@@ -202,8 +204,19 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
       const response = await strategies[index]();
       lastResponse = response;
 
-      if (!retryableStatuses.has(response.status)) {
+      if (response.ok) {
         return response;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        authFailureResponse = response;
+      } else if (!retryableStatuses.has(response.status)) {
+        nonRetryableResponse = response;
+      }
+
+      const shouldContinue = retryableStatuses.has(response.status) || response.status === 401 || response.status === 403;
+      if (!shouldContinue) {
+        break;
       }
     } catch (error) {
       lastError = error;
@@ -212,6 +225,14 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
     if (index < strategies.length - 1) {
       await wait(250 + index * 150);
     }
+  }
+
+  if (nonRetryableResponse) {
+    return nonRetryableResponse;
+  }
+
+  if (authFailureResponse) {
+    return authFailureResponse;
   }
 
   if (lastResponse) {
