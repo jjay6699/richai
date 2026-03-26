@@ -40,7 +40,7 @@ interface AdminOverview {
   orders: AdminOrder[];
 }
 
-type AdminSection = "overview" | "users" | "sales";
+type AdminSection = "overview" | "users" | "sales" | "analytics";
 type FetchStatus = "idle" | "restored" | "authenticated" | "refresh_failed" | "expired";
 type DateRangeFilter = "all" | "7d" | "30d" | "90d";
 type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "name_asc" | "email_asc";
@@ -51,7 +51,8 @@ const directApiBase = (import.meta.env.VITE_ADMIN_DIRECT_API_URL || "https://hea
 const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; description: string }> = [
   { id: "overview", label: "Overview", shortLabel: "OV", description: "Key operational snapshot" },
   { id: "users", label: "Users", shortLabel: "US", description: "App registrations and account activity" },
-  { id: "sales", label: "Sales", shortLabel: "SA", description: "Orders, revenue, and payment status" }
+  { id: "sales", label: "Sales", shortLabel: "SA", description: "Orders, revenue, and payment status" },
+  { id: "analytics", label: "Analytics", shortLabel: "AN", description: "Trend and performance insights" }
 ];
 
 const encodeBasicAuth = (username: string, password: string) =>
@@ -146,6 +147,17 @@ const getSectionMeta = (
       badge: dashboard ? `${dashboard.orders.length} total records` : "Awaiting data",
       timestampLabel: "Latest sale",
       timestampValue: formatDate(dashboard?.stats.latestSaleAt ?? null)
+    };
+  }
+
+  if (activeSection === "analytics") {
+    return {
+      kicker: "Analytics",
+      title: "Performance analytics",
+      description: "Understand registration and revenue trends with conversion and engagement metrics.",
+      badge: dashboard ? "Operational trends" : "Awaiting data",
+      timestampLabel: "Last synced",
+      timestampValue: formatDate(lastSyncedAt)
     };
   }
 
@@ -1269,6 +1281,58 @@ function AdminPage() {
     </div>
   );
 
+  const renderAnalytics = () => {
+    const users = dashboard?.users ?? [];
+    const orders = dashboard?.orders ?? [];
+    const paidOrders = orders.filter((order) => ["paid", "completed", "succeeded"].includes(order.status.trim().toLowerCase()));
+    const conversionRate = users.length ? (paidOrders.length / users.length) * 100 : 0;
+    const averageRevenuePerUser = users.length ? (dashboard?.stats.totalRevenue ?? 0) / users.length : 0;
+    const returningCustomers = orders.filter((order) =>
+      orders.filter((candidate) => candidate.userId && candidate.userId === order.userId).length > 1
+    );
+    const repeatRate = paidOrders.length ? (returningCustomers.length / paidOrders.length) * 100 : 0;
+
+    return (
+      <div className="admin-section-stack">
+        <section className="admin-kpi-grid">
+          <article className="admin-kpi-card">
+            <span className="admin-kpi-label">User to paid conversion</span>
+            <strong>{conversionRate.toFixed(1)}%</strong>
+            <small>{paidOrders.length} paid orders from {users.length} users</small>
+          </article>
+          <article className="admin-kpi-card">
+            <span className="admin-kpi-label">Revenue per user</span>
+            <strong>{formatCurrency(averageRevenuePerUser)}</strong>
+            <small>Total revenue distributed across registered users</small>
+          </article>
+          <article className="admin-kpi-card">
+            <span className="admin-kpi-label">Repeat purchase rate</span>
+            <strong>{repeatRate.toFixed(1)}%</strong>
+            <small>{returningCustomers.length} repeat orders detected</small>
+          </article>
+        </section>
+
+        <section className="admin-kpi-grid admin-kpi-grid-secondary">
+          <article className="admin-kpi-card">
+            <span className="admin-kpi-label">New users (7 days)</span>
+            <strong>{overviewStats.newUsers7d}</strong>
+            <small>{overviewStats.users30d} in last 30 days</small>
+          </article>
+          <article className="admin-kpi-card">
+            <span className="admin-kpi-label">Paid orders (30 days)</span>
+            <strong>{overviewStats.paidOrders30d}</strong>
+            <small>{overviewStats.failedOrders30d} failed/cancelled</small>
+          </article>
+          <article className="admin-kpi-card">
+            <span className="admin-kpi-label">Revenue (30 days)</span>
+            <strong>{formatCurrency(overviewStats.revenue30d)}</strong>
+            <small>AOV {formatCurrency(overviewStats.averageOrderValue)}</small>
+          </article>
+        </section>
+      </div>
+    );
+  };
+
   if (!isSignedIn) {
     return (
       <main
@@ -1532,6 +1596,7 @@ function AdminPage() {
             {activeSection === "overview" && renderOverview()}
             {activeSection === "users" && renderUsers()}
             {activeSection === "sales" && renderSales()}
+            {activeSection === "analytics" && renderAnalytics()}
           </div>
         )}
       </main>
