@@ -312,9 +312,9 @@ function ContactPage() {
 
               <div className="site-footer-column">
                 <span className="site-footer-heading">Legal</span>
-                <a href="/">Privacy Policy</a>
-                <a href="/">Terms of Service</a>
-                <a href="/">Cookies</a>
+                <a href="/privacy-policy">Privacy Policy</a>
+                <a href="/terms-of-service">Terms of Service</a>
+                <a href="/cookies">Cookies</a>
               </div>
 
               <div className="site-footer-column">

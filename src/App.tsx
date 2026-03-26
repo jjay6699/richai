@@ -4,6 +4,7 @@ import AdminPage from "./AdminPage";
 import AppDownloadModal from "./AppDownloadModal";
 import ContactPage from "./ContactPage";
 import IngredientsPage from "./IngredientsPage";
+import LegalPage from "./LegalPage";
 import { applySeo } from "./seo";
 import "./App.css";
 
@@ -524,9 +525,9 @@ function MarketingPage() {
 
               <div className="site-footer-column">
                 <span className="site-footer-heading">Legal</span>
-                <a href="/">Privacy Policy</a>
-                <a href="/">Terms of Service</a>
-                <a href="/">Cookies</a>
+                <a href="/privacy-policy">Privacy Policy</a>
+                <a href="/terms-of-service">Terms of Service</a>
+                <a href="/cookies">Cookies</a>
               </div>
 
               <div className="site-footer-column">
@@ -582,6 +583,36 @@ function App() {
       return;
     }
 
+    if (pathname.startsWith("/privacy-policy")) {
+      applySeo({
+        title: "Privacy Policy | RicHealth AI Malaysia",
+        description:
+          "Read how RicHealth AI handles personal data and privacy obligations for users in Malaysia.",
+        path: "/privacy-policy"
+      });
+      return;
+    }
+
+    if (pathname.startsWith("/terms-of-service")) {
+      applySeo({
+        title: "Terms of Service | RicHealth AI Malaysia",
+        description:
+          "Review the RicHealth AI website and service terms that apply to users in Malaysia.",
+        path: "/terms-of-service"
+      });
+      return;
+    }
+
+    if (pathname.startsWith("/cookies")) {
+      applySeo({
+        title: "Cookie Policy | RicHealth AI Malaysia",
+        description:
+          "Learn how RicHealth AI uses cookies and similar technologies on its website in Malaysia.",
+        path: "/cookies"
+      });
+      return;
+    }
+
     applySeo({
       title: "RicHealth AI | Precision Health and Personalized Nutrition",
       description:
@@ -598,6 +629,15 @@ function App() {
   }
   if (pathname.startsWith("/ingredients")) {
     return <IngredientsPage />;
+  }
+  if (pathname.startsWith("/privacy-policy")) {
+    return <LegalPage pageType="privacy" />;
+  }
+  if (pathname.startsWith("/terms-of-service")) {
+    return <LegalPage pageType="terms" />;
+  }
+  if (pathname.startsWith("/cookies")) {
+    return <LegalPage pageType="cookies" />;
   }
 
   return <MarketingPage />;
