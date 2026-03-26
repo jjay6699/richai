@@ -397,6 +397,7 @@ function IngredientsPage() {
                 <a href="/privacy-policy">Privacy Policy</a>
                 <a href="/terms-of-service">Terms of Service</a>
                 <a href="/cookies">Cookies</a>
+                <a href="/shipping-and-return-policy">Shipping and return policy</a>
               </div>
 
               <div className="site-footer-column">

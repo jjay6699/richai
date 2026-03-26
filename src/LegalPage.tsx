@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { motion, type Variants } from "framer-motion";
 
-type LegalPageType = "privacy" | "terms" | "cookies";
+type LegalPageType = "privacy" | "terms" | "cookies" | "shipping-returns";
 
 interface LegalSection {
   heading: string;
@@ -40,7 +40,7 @@ const fadeUp: Variants = {
 const legalDocuments: Record<LegalPageType, LegalDocument> = {
   privacy: {
     eyebrow: "Privacy Policy",
-    title: "How RicHealth AI handles personal data in Malaysia",
+    title: "How RicHealth AI handles personal data",
     intro:
       "This Privacy Policy explains how RicHealth AI collects, uses, stores, and protects personal data when you use our website, contact us, join our waiting list, or interact with our health-related digital services.",
     effectiveDate: "Effective date: 26 March 2026",
@@ -126,7 +126,7 @@ const legalDocuments: Record<LegalPageType, LegalDocument> = {
   },
   terms: {
     eyebrow: "Terms of Service",
-    title: "Terms for using RicHealth AI in Malaysia",
+    title: "Terms for using RicHealth AI",
     intro:
       "These Terms of Service govern access to and use of the RicHealth AI website, digital content, contact channels, and related products or services made available by us from time to time.",
     effectiveDate: "Effective date: 26 March 2026",
@@ -268,13 +268,77 @@ const legalDocuments: Record<LegalPageType, LegalDocument> = {
         ]
       }
     ]
+  },
+  "shipping-returns": {
+    eyebrow: "Shipping & Return Policy",
+    title: "Shipping and return policy",
+    intro:
+      "This policy explains how RicHealth AI handles order processing, delivery timelines, shipping fees, damaged parcels, cancellations, and return requests for products sold through our website.",
+    effectiveDate: "Effective date: 26 March 2026",
+    summary: [
+      "Orders are processed on business days and shipping timelines may vary by destination.",
+      "Shipping fees and delivery estimates are shown at checkout before payment.",
+      "Report damaged, defective, or incorrect items promptly so we can review and resolve.",
+      "Return or replacement eligibility depends on product condition, safety requirements, and request timing."
+    ],
+    sections: [
+      {
+        heading: "1. Order processing",
+        body: [
+          "Orders are typically processed after successful payment confirmation. Processing usually takes one to three business days, excluding weekends and public holidays.",
+          "If order volume is unusually high or additional verification is needed, processing may take longer. We will aim to keep you informed where material delays occur."
+        ]
+      },
+      {
+        heading: "2. Shipping coverage and delivery estimates",
+        body: [
+          "We currently prioritize deliveries within Malaysia. Estimated delivery windows depend on courier coverage, destination, weather, and logistics conditions.",
+          "Delivery estimates displayed at checkout are indicative and not guaranteed. Once your parcel is handed to the courier, transit timing is managed by the shipping partner."
+        ]
+      },
+      {
+        heading: "3. Shipping fees and tracking",
+        body: [
+          "Shipping charges, if applicable, are shown during checkout before you complete payment. Promotional free-shipping offers may be available from time to time under stated terms.",
+          "Where tracking is available, shipment updates are provided through the courier tracking link or delivery notifications shared with your order details."
+        ]
+      },
+      {
+        heading: "4. Incorrect, missing, or damaged items",
+        body: [
+          "If your order arrives damaged, incomplete, or contains incorrect items, contact us as soon as possible at hello@richealth.ai with your order number and clear photo evidence.",
+          "After review, we may provide a replacement, partial refund, or another suitable resolution depending on stock availability and case findings."
+        ]
+      },
+      {
+        heading: "5. Returns and eligibility",
+        body: [
+          "For hygiene and safety reasons, opened consumable products may not be eligible for return unless the item is defective, damaged on arrival, or supplied incorrectly.",
+          "Unopened items in original condition may be considered for return requests submitted within seven days of delivery, subject to review and approval."
+        ]
+      },
+      {
+        heading: "6. Cancellations and refunds",
+        body: [
+          "Cancellation requests are only possible before the order is packed or dispatched. Once shipped, cancellation may no longer be available and the return process will apply where eligible.",
+          "Approved refunds are typically issued to the original payment method. Processing time may vary based on your payment provider and bank timelines."
+        ]
+      },
+      {
+        heading: "7. Contact for shipping support",
+        body: [
+          "For shipping, delivery, or return support, contact RicHealth AI at hello@richealth.ai or +60 16-447 6899 and include your order number for faster assistance."
+        ]
+      }
+    ]
   }
 };
 
 const legalTabs: Array<{ type: LegalPageType; label: string; href: string }> = [
   { type: "privacy", label: "Privacy Policy", href: "/privacy-policy" },
   { type: "terms", label: "Terms of Service", href: "/terms-of-service" },
-  { type: "cookies", label: "Cookies", href: "/cookies" }
+  { type: "cookies", label: "Cookies", href: "/cookies" },
+  { type: "shipping-returns", label: "Shipping & Returns", href: "/shipping-and-return-policy" }
 ];
 
 interface LegalPageProps {
@@ -424,6 +488,7 @@ function LegalPage({ pageType }: LegalPageProps) {
                 <a href="/privacy-policy">Privacy Policy</a>
                 <a href="/terms-of-service">Terms of Service</a>
                 <a href="/cookies">Cookies</a>
+                <a href="/shipping-and-return-policy">Shipping and return policy</a>
               </div>
 
               <div className="site-footer-column">

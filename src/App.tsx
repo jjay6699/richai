@@ -528,6 +528,7 @@ function MarketingPage() {
                 <a href="/privacy-policy">Privacy Policy</a>
                 <a href="/terms-of-service">Terms of Service</a>
                 <a href="/cookies">Cookies</a>
+                <a href="/shipping-and-return-policy">Shipping and return policy</a>
               </div>
 
               <div className="site-footer-column">
@@ -613,6 +614,16 @@ function App() {
       return;
     }
 
+    if (pathname.startsWith("/shipping-and-return-policy")) {
+      applySeo({
+        title: "Shipping and Return Policy | RicHealth AI",
+        description:
+          "Read RicHealth AI shipping, delivery, cancellation, return, and refund terms for product orders.",
+        path: "/shipping-and-return-policy"
+      });
+      return;
+    }
+
     applySeo({
       title: "RicHealth AI | Precision Health and Personalized Nutrition",
       description:
@@ -638,6 +649,9 @@ function App() {
   }
   if (pathname.startsWith("/cookies")) {
     return <LegalPage pageType="cookies" />;
+  }
+  if (pathname.startsWith("/shipping-and-return-policy")) {
+    return <LegalPage pageType="shipping-returns" />;
   }
 
   return <MarketingPage />;
