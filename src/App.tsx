@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, type Variants, useMotionValue, useSpring, useTransform } from "framer-motion";
 import AdminPage from "./AdminPage";
+import AppDownloadModal from "./AppDownloadModal";
 import ContactPage from "./ContactPage";
 import IngredientsPage from "./IngredientsPage";
 import { applySeo } from "./seo";
@@ -123,6 +124,7 @@ const heroCardFloat: Variants = {
 
 function MarketingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   const ref = useRef<HTMLDivElement>(null);
   const mouseX = useMotionValue(0);
@@ -169,6 +171,15 @@ function MarketingPage() {
     event.currentTarget.style.setProperty("--glow-y", "50%");
   };
 
+  const openDownloadModal = () => {
+    setIsMenuOpen(false);
+    setIsDownloadModalOpen(true);
+  };
+
+  const closeDownloadModal = () => {
+    setIsDownloadModalOpen(false);
+  };
+
   return (
     <div className="page">
       <motion.header
@@ -199,14 +210,14 @@ function MarketingPage() {
           <a href="#technology">Technology</a>
           <a href="/ingredients">Ingredients</a>
           <a href="/contact">Contact</a>
-          <a className="site-nav-cta" href="#start">
+          <button type="button" className="site-nav-cta" onClick={openDownloadModal}>
             Start Your Health Journey
-          </a>
+          </button>
         </nav>
 
-        <a className="header-cta" href="#start">
+        <button type="button" className="header-cta" onClick={openDownloadModal}>
           Start Your Health Journey
-        </a>
+        </button>
       </motion.header>
 
       <main>
@@ -276,15 +287,16 @@ function MarketingPage() {
                 We are bridging the gap between clinical diagnostics, real-time lifestyle tracking, and pure
                 wellness to create a proactive healthcare ecosystem.
               </motion.p>
-              <motion.a
+              <motion.button
                 variants={fadeUp}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="hero-button"
-                href="#start"
+                type="button"
+                onClick={openDownloadModal}
               >
                 Start Your Health Journey
-              </motion.a>
+              </motion.button>
             </motion.div>
 
             <div className="hero-product-scene" aria-hidden="true">
@@ -468,18 +480,21 @@ function MarketingPage() {
             <motion.p variants={fadeUp} className="final-cta-copy">
               Personalized nutrition designed around your data, delivered through an accessible subscription model.
             </motion.p>
-            <motion.a
+            <motion.button
               variants={fadeUp}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
               className="final-cta-button"
-              href="/"
+              type="button"
+              onClick={openDownloadModal}
             >
               Start Your Health Journey
-            </motion.a>
+            </motion.button>
           </motion.div>
         </section>
       </main>
+
+      <AppDownloadModal isOpen={isDownloadModalOpen} onClose={closeDownloadModal} />
 
       <footer className="site-footer" id="contact">
         <div className="site-footer-inner">

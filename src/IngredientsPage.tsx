@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion, type Variants } from "framer-motion";
+import AppDownloadModal from "./AppDownloadModal";
 import { ingredientCategories, ingredientEntries } from "./ingredientsData";
 
 const staggerContainer: Variants = {
@@ -74,11 +75,21 @@ const sanitizeDescription = (text: string) =>
 
 function IngredientsPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>(ingredientCategories[0] || "");
 
   const filteredEntries = ingredientEntries.filter((entry) => entry.category === activeCategory);
 
   const featuredBlends = ingredientEntries.filter((entry) => signatureProducts.includes(entry.name));
+
+  const openDownloadModal = () => {
+    setIsMenuOpen(false);
+    setIsDownloadModalOpen(true);
+  };
+
+  const closeDownloadModal = () => {
+    setIsDownloadModalOpen(false);
+  };
 
   return (
     <div className="page">
@@ -112,14 +123,14 @@ function IngredientsPage() {
             Ingredients
           </a>
           <a href="/contact">Contact</a>
-          <a className="site-nav-cta" href="/#start">
+          <button type="button" className="site-nav-cta" onClick={openDownloadModal}>
             Start Your Health Journey
-          </a>
+          </button>
         </nav>
 
-        <a className="header-cta" href="/#start">
+        <button type="button" className="header-cta" onClick={openDownloadModal}>
           Start Your Health Journey
-        </a>
+        </button>
       </motion.header>
 
       <main>
@@ -339,18 +350,21 @@ function IngredientsPage() {
               Explore the blend, understand the ingredients, and move back into the main RicHealth AI journey when
               you're ready to start.
             </motion.p>
-            <motion.a
+            <motion.button
               variants={fadeUp}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
               className="final-cta-button"
-              href="/#start"
+              type="button"
+              onClick={openDownloadModal}
             >
               Start Your Health Journey
-            </motion.a>
+            </motion.button>
           </motion.div>
         </section>
       </main>
+
+      <AppDownloadModal isOpen={isDownloadModalOpen} onClose={closeDownloadModal} />
 
       <footer className="site-footer" id="contact">
         <div className="site-footer-inner">
