@@ -1241,38 +1241,13 @@ function AdminPage() {
   if (!isSignedIn) {
     return (
       <main className="admin-content admin-content-auth-only">
-        <header className="admin-content-header">
-          <div className="admin-title-group">
-            <p className="admin-content-kicker">Overview</p>
-            <div className="admin-title-row">
-              <h2>Admin access</h2>
-              <span className="admin-title-badge">Protected route</span>
-            </div>
-            <p className="admin-content-copy">
-              Sign in with your admin credentials to access registrations, sales, and operational reporting from the app service.
-            </p>
-          </div>
-
-          <div className="admin-toolbar">
-            <div className="admin-toolbar-card">
-              <span>API source</span>
-              <strong>{apiBase}</strong>
-            </div>
-            <div className="admin-toolbar-card">
-              <span>Connection</span>
-              <strong>Not connected</strong>
-            </div>
-          </div>
-        </header>
-
-        <section className="admin-login-layout">
-          <article className="admin-login-panel">
+        <section
+          className="admin-login-layout"
+          style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: "2rem" }}
+        >
+          <article className="admin-login-panel" style={{ width: "min(100%, 520px)" }}>
             <div className="admin-login-panel-head">
-              <p className="admin-panel-kicker">Protected access</p>
-              <h3>Sign in to unlock the control room</h3>
-              <p>
-                The website does not store app data. It only fetches operational data from the app service after successful admin authentication.
-              </p>
+              <h3>Admin login</h3>
             </div>
 
             <form className="admin-login-form" onSubmit={handleSubmit}>
@@ -1282,7 +1257,7 @@ function AdminPage() {
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
                   autoComplete="username"
-                  placeholder="Enter admin username"
+                  placeholder="Enter username"
                 />
               </label>
 
@@ -1293,7 +1268,7 @@ function AdminPage() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   autoComplete="current-password"
-                  placeholder="Enter admin password"
+                  placeholder="Enter password"
                 />
               </label>
 
@@ -1310,28 +1285,9 @@ function AdminPage() {
               {error ? <p className="admin-inline-error">{error}</p> : null}
 
               <button className="admin-submit-button" type="submit" disabled={!canSubmit || isLoading}>
-                {isLoading ? "Checking access..." : "Open dashboard"}
+                {isLoading ? "Checking access..." : "Sign in"}
               </button>
             </form>
-          </article>
-
-          <article className="admin-login-note">
-            <p className="admin-panel-kicker">What becomes available</p>
-            <h3>Live operational visibility</h3>
-            <div className="admin-note-list">
-              <div className="admin-note-item">
-                <strong>Registrations</strong>
-                <span>Inspect app signups, providers, countries, and latest login activity.</span>
-              </div>
-              <div className="admin-note-item">
-                <strong>Sales</strong>
-                <span>Track order creation, payment method choice, order status, and revenue totals.</span>
-              </div>
-              <div className="admin-note-item">
-                <strong>Refreshable sync</strong>
-                <span>Reload the app admin feed without leaving the panel.</span>
-              </div>
-            </div>
           </article>
         </section>
       </main>
