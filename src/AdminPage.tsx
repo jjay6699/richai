@@ -161,91 +161,33 @@ const getSectionMeta = (
 
 const requestAdminOverview = async (nextUsername: string, nextPassword: string) => {
   const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
-  const retryableStatuses = new Set([404, 405, 429, 500, 502, 503, 504]);
+  const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword) };
+  const retryableStatuses = new Set([429, 500, 502, 503, 504]);
 
-  const requestViaBroker = () =>
-    fetch(`${apiBase}/admin/overview-auth`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ username: nextUsername, password: nextPassword })
-    });
-
-  const requestDirect = () =>
-    fetch(`${apiBase}/admin/overview`, {
-      headers: {
-        Authorization: encodeBasicAuth(nextUsername, nextPassword)
-      }
-    });
-
-  const requestDirectUpstream = () =>
-    fetch(`${directApiBase}/admin/overview`, {
-      headers: {
-        Authorization: encodeBasicAuth(nextUsername, nextPassword)
-      }
-    });
-
-  const strategies: Array<() => Promise<Response>> = [
-    requestViaBroker,
-    requestDirect,
-    requestDirectUpstream,
-    requestViaBroker,
-    requestDirect,
-    requestDirectUpstream
-  ];
   let lastResponse: Response | null = null;
-  let authFailureResponse: Response | null = null;
-  let nonRetryableResponse: Response | null = null;
-  let transientFailureResponse: Response | null = null;
   let lastError: unknown = null;
 
-  for (let index = 0; index < strategies.length; index += 1) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const response = await strategies[index]();
+      const response = await fetch(`${directApiBase}/admin/overview`, {
+        headers: authHeader
+      });
+
       lastResponse = response;
 
-      if (response.ok) {
+      if (!retryableStatuses.has(response.status)) {
         return response;
-      }
-
-      if (response.status === 401 || response.status === 403) {
-        authFailureResponse = response;
-      } else if (retryableStatuses.has(response.status)) {
-        transientFailureResponse = response;
-      } else if (!retryableStatuses.has(response.status)) {
-        nonRetryableResponse = response;
-      }
-
-      const shouldContinue = retryableStatuses.has(response.status) || response.status === 401 || response.status === 403;
-      if (!shouldContinue) {
-        break;
       }
     } catch (error) {
       lastError = error;
     }
 
-    if (index < strategies.length - 1) {
-      await wait(250 + index * 150);
+    if (attempt === 0) {
+      await wait(350);
     }
   }
 
-  if (nonRetryableResponse) {
-    return nonRetryableResponse;
-  }
-
-  if (transientFailureResponse) {
-    return transientFailureResponse;
-  }
-
-  if (authFailureResponse) {
-    return authFailureResponse;
-  }
-
-  if (lastResponse) {
-    return lastResponse;
-  }
-
+  if (lastResponse) return lastResponse;
   throw lastError instanceof Error ? lastError : new TypeError("Unable to reach the admin service.");
 };
 
