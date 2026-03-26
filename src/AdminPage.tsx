@@ -1240,10 +1240,13 @@ function AdminPage() {
 
   if (!isSignedIn) {
     return (
-      <main className="admin-content admin-content-auth-only">
+      <main
+        className="admin-content-auth-only"
+        style={{ minHeight: "100vh", width: "100vw", display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
         <section
           className="admin-login-layout"
-          style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: "2rem" }}
+          style={{ width: "100%", display: "grid", placeItems: "center", padding: "2rem" }}
         >
           <article className="admin-login-panel" style={{ width: "min(100%, 520px)" }}>
             <div className="admin-login-panel-head">
