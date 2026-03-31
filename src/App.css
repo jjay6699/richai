@@ -3562,6 +3562,39 @@
   font-weight: 600;
 }
 
+@media (max-width: 1360px) {
+  .ingredients-hero-scene {
+    padding: 0 1.6rem 1.8rem 0;
+  }
+
+  .ingredients-scene-panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+    width: min(31rem, 100%);
+    padding: 0.95rem;
+  }
+
+  .ingredients-scene-row {
+    min-height: 100%;
+    padding: 0.8rem 0.85rem;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .ingredients-scene-row + .ingredients-scene-row {
+    margin-top: 0;
+    padding-top: 0.8rem;
+    border-top: none;
+  }
+
+  .ingredients-scene-row strong {
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+}
+
 .ingredients-signature-section {
   align-items: flex-start;
   padding-top: 5.25rem;
