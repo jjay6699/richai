@@ -316,7 +316,11 @@ function MarketingPage() {
               How it works
             </motion.p>
             <motion.h2 variants={fadeUp}>
-              <span className="heading-line">The ultimate wellness loop.</span>
+              <span className="heading-line">
+                The ultimate wellness
+                <br />
+                loop.
+              </span>
               <br />
               Connect between data and nutrition needs.
             </motion.h2>
@@ -515,9 +519,9 @@ function App() {
 
     if (pathname.startsWith("/contact")) {
       applySeo({
-        title: "Contact Us | RicHealth AI",
+        title: "Contact RicHealth AI | Wellness Support, Partnerships, and Product Enquiries",
         description:
-          "Contact RicHealth AI for product questions, ingredient enquiries, partnerships, and support.",
+          "Contact RicHealth AI for personalized nutrition questions, ingredient enquiries, wellness support, and partnership opportunities.",
         path: "/contact"
       });
       return;
@@ -525,9 +529,9 @@ function App() {
 
     if (pathname.startsWith("/ingredients")) {
       applySeo({
-        title: "Ingredients | RicHealth AI",
+        title: "Ingredients | Natural Superfoods and Functional Blends by RicHealth AI",
         description:
-          "Explore the RicHealth AI ingredient range, from greens and antioxidant fruits to functional staples and signature blends.",
+          "Explore RicHealth AI ingredients, from greens and antioxidant berries to functional adaptogens and signature natural superfood blends.",
         path: "/ingredients"
       });
       return;
@@ -535,9 +539,9 @@ function App() {
 
     if (pathname.startsWith("/privacy-policy")) {
       applySeo({
-        title: "Privacy Policy | RicHealth AI Malaysia",
+        title: "Privacy Policy | RicHealth AI",
         description:
-          "Read how RicHealth AI handles personal data and privacy obligations for users in Malaysia.",
+          "Read how RicHealth AI collects, uses, stores, and protects personal data across the website and related services.",
         path: "/privacy-policy"
       });
       return;
@@ -545,9 +549,9 @@ function App() {
 
     if (pathname.startsWith("/terms-of-service")) {
       applySeo({
-        title: "Terms of Service | RicHealth AI Malaysia",
+        title: "Terms of Service | RicHealth AI",
         description:
-          "Review the RicHealth AI website and service terms that apply to users in Malaysia.",
+          "Review the RicHealth AI website and service terms covering access, content, permitted use, and liability.",
         path: "/terms-of-service"
       });
       return;
@@ -555,9 +559,9 @@ function App() {
 
     if (pathname.startsWith("/cookies")) {
       applySeo({
-        title: "Cookie Policy | RicHealth AI Malaysia",
+        title: "Cookie Policy | RicHealth AI",
         description:
-          "Learn how RicHealth AI uses cookies and similar technologies on its website in Malaysia.",
+          "Learn how RicHealth AI uses cookies, pixels, and similar technologies to operate the website and improve user experience.",
         path: "/cookies"
       });
       return;
@@ -565,18 +569,18 @@ function App() {
 
     if (pathname.startsWith("/shipping-and-return-policy")) {
       applySeo({
-        title: "Shipping and Return Policy | RicHealth AI",
+        title: "Shipping and Return Policy | RicHealth AI Personalized Nutrition",
         description:
-          "Read RicHealth AI shipping, delivery, cancellation, return, and refund terms for product orders.",
+          "Read RicHealth AI shipping, delivery, cancellation, return, and refund terms for personalized nutrition orders.",
         path: "/shipping-and-return-policy"
       });
       return;
     }
 
     applySeo({
-      title: "RicHealth AI | Precision Health and Personalized Nutrition",
+      title: "RicHealth AI | Precision Wellness and Personalized Nutrition",
       description:
-        "RicHealth AI connects personal health data, wearable insights, and personalized nutrition to help users build a smarter wellness journey.",
+        "RicHealth AI connects personal health data, wearable insights, and personalized nutrition to build a smarter, proactive wellness journey.",
       path: "/"
     });
   }, [pathname]);

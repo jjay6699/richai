@@ -413,7 +413,7 @@
 }
 
 .heading-line {
-  white-space: nowrap;
+  display: inline-block;
 }
 
 .benefits-copy p {
