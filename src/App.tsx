@@ -3,6 +3,7 @@ import { motion, type Variants, useMotionValue, useSpring, useTransform } from "
 import AdminPage from "./AdminPage";
 import AppDownloadModal from "./AppDownloadModal";
 import ContactPage from "./ContactPage";
+import CookieBanner from "./CookieBanner";
 import IngredientsPage from "./IngredientsPage";
 import LegalPage from "./LegalPage";
 import SiteFooter from "./SiteFooter";
@@ -614,26 +615,29 @@ function App() {
   if (pathname.startsWith("/admin")) {
     return <AdminPage />;
   }
+
+  let page = <MarketingPage />;
+
   if (pathname.startsWith("/contact")) {
-    return <ContactPage />;
-  }
-  if (pathname.startsWith("/ingredients")) {
-    return <IngredientsPage />;
-  }
-  if (pathname.startsWith("/privacy-policy")) {
-    return <LegalPage pageType="privacy" />;
-  }
-  if (pathname.startsWith("/terms-of-service")) {
-    return <LegalPage pageType="terms" />;
-  }
-  if (pathname.startsWith("/cookies")) {
-    return <LegalPage pageType="cookies" />;
-  }
-  if (pathname.startsWith("/shipping-and-return-policy")) {
-    return <LegalPage pageType="shipping-returns" />;
+    page = <ContactPage />;
+  } else if (pathname.startsWith("/ingredients")) {
+    page = <IngredientsPage />;
+  } else if (pathname.startsWith("/privacy-policy")) {
+    page = <LegalPage pageType="privacy" />;
+  } else if (pathname.startsWith("/terms-of-service")) {
+    page = <LegalPage pageType="terms" />;
+  } else if (pathname.startsWith("/cookies")) {
+    page = <LegalPage pageType="cookies" />;
+  } else if (pathname.startsWith("/shipping-and-return-policy")) {
+    page = <LegalPage pageType="shipping-returns" />;
   }
 
-  return <MarketingPage />;
+  return (
+    <>
+      {page}
+      <CookieBanner />
+    </>
+  );
 }
 
 export default App;
