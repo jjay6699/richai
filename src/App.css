@@ -1244,6 +1244,7 @@
   display: inline-flex;
   align-items: center;
   text-decoration: none;
+  margin-left: -0.45rem;
 }
 
 .site-footer-logo {
