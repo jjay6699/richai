@@ -1678,13 +1678,98 @@ function AdminPage() {
   const renderAnalytics = () => {
     const users = dashboard?.users ?? [];
     const orders = dashboard?.orders ?? [];
-    const paidOrders = orders.filter((order) => ["paid", "completed", "succeeded"].includes(order.status.trim().toLowerCase()));
+    const paidOrders = orders.filter((order) => isPaidOrder(order.status));
     const conversionRate = users.length ? (paidOrders.length / users.length) * 100 : 0;
     const averageRevenuePerUser = users.length ? (dashboard?.stats.totalRevenue ?? 0) / users.length : 0;
     const returningCustomers = orders.filter((order) =>
       orders.filter((candidate) => candidate.userId && candidate.userId === order.userId).length > 1
     );
     const repeatRate = paidOrders.length ? (returningCustomers.length / paidOrders.length) * 100 : 0;
+    const referredPaidOrders = paidOrders.filter((order) => order.couponCode?.trim());
+    const referredRevenue = referredPaidOrders.reduce((sum, order) => sum + order.price, 0);
+    const referredRevenueShare = dashboard?.stats.totalRevenue
+      ? (referredRevenue / dashboard.stats.totalRevenue) * 100
+      : 0;
+    const paidOrderRate = orders.length ? (paidOrders.length / orders.length) * 100 : 0;
+
+    const buildMonthlySeries = <T,>(items: T[], getTimestamp: (item: T) => number, getValue: (item: T) => number) => {
+      const now = new Date();
+      const buckets = Array.from({ length: 6 }, (_, index) => {
+        const date = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+        const key = `${date.getFullYear()}-${date.getMonth()}`;
+        return {
+          key,
+          label: date.toLocaleString("en-MY", { month: "short" }),
+          value: 0
+        };
+      });
+
+      const bucketMap = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+      items.forEach((item) => {
+        const date = new Date(getTimestamp(item));
+        const key = `${date.getFullYear()}-${date.getMonth()}`;
+        const bucket = bucketMap.get(key);
+        if (bucket) bucket.value += getValue(item);
+      });
+
+      const maxValue = Math.max(...buckets.map((bucket) => bucket.value), 0);
+      return buckets.map((bucket) => ({
+        ...bucket,
+        width: maxValue ? `${Math.max((bucket.value / maxValue) * 100, bucket.value > 0 ? 12 : 0)}%` : "0%"
+      }));
+    };
+
+    const revenueTrend = buildMonthlySeries(paidOrders, (order) => order.createdAt, (order) => order.price);
+    const signupTrend = buildMonthlySeries(users, (user) => user.createdAt, () => 1);
+
+    const topPlans = Array.from(
+      orders.reduce((map, order) => {
+        const key = order.planLabel || order.plan;
+        const current = map.get(key) || { label: key, orders: 0, revenue: 0 };
+        current.orders += 1;
+        if (isPaidOrder(order.status)) current.revenue += order.price;
+        map.set(key, current);
+        return map;
+      }, new Map<string, { label: string; orders: number; revenue: number }>())
+    )
+      .map(([, value]) => value)
+      .sort((left, right) => right.revenue - left.revenue || right.orders - left.orders)
+      .slice(0, 5);
+
+    const topCountries = Array.from(
+      users.reduce((map, user) => {
+        const key = user.country?.trim() || "Unknown";
+        map.set(key, (map.get(key) || 0) + 1);
+        return map;
+      }, new Map<string, number>())
+    )
+      .map(([label, count]) => ({ label, count }))
+      .sort((left, right) => right.count - left.count)
+      .slice(0, 5);
+
+    const providerMix = Array.from(
+      users.reduce((map, user) => {
+        const key = getProviderLabel(user.provider);
+        map.set(key, (map.get(key) || 0) + 1);
+        return map;
+      }, new Map<string, number>())
+    )
+      .map(([label, count]) => ({ label, count }))
+      .sort((left, right) => right.count - left.count);
+
+    const statusMix = Array.from(
+      orders.reduce((map, order) => {
+        const key = order.status;
+        map.set(key, (map.get(key) || 0) + 1);
+        return map;
+      }, new Map<string, number>())
+    )
+      .map(([label, count]) => ({ label, count, tone: getStatusTone(label) }))
+      .sort((left, right) => right.count - left.count);
+
+    const topReferralCodes = [...referralSummaries]
+      .sort((left, right) => right.monthPaidRevenue - left.monthPaidRevenue)
+      .slice(0, 5);
 
     return (
       <div className="admin-section-stack">
@@ -1704,6 +1789,11 @@ function AdminPage() {
             <strong>{repeatRate.toFixed(1)}%</strong>
             <small>{returningCustomers.length} repeat orders detected</small>
           </article>
+          <article className="admin-kpi-card">
+            <span className="admin-kpi-label">Paid order rate</span>
+            <strong>{paidOrderRate.toFixed(1)}%</strong>
+            <small>{paidOrders.length} of {orders.length} orders reached a paid/completed state</small>
+          </article>
         </section>
 
         <section className="admin-kpi-grid admin-kpi-grid-secondary">
@@ -1721,6 +1811,181 @@ function AdminPage() {
             <span className="admin-kpi-label">Revenue (30 days)</span>
             <strong>{formatCurrency(overviewStats.revenue30d)}</strong>
             <small>AOV {formatCurrency(overviewStats.averageOrderValue)}</small>
+          </article>
+          <article className="admin-kpi-card">
+            <span className="admin-kpi-label">Referral revenue share</span>
+            <strong>{referredRevenueShare.toFixed(1)}%</strong>
+            <small>{formatCurrency(referredRevenue)} from attributed referral-code orders</small>
+          </article>
+        </section>
+
+        <section className="admin-overview-grid admin-analytics-grid">
+          <article className="admin-panel-card">
+            <div className="admin-panel-head">
+              <div>
+                <p className="admin-panel-kicker">Revenue trend</p>
+                <h3>Paid revenue by month</h3>
+              </div>
+            </div>
+            <div className="admin-analytics-series">
+              {revenueTrend.map((bucket) => (
+                <div key={bucket.key} className="admin-analytics-row">
+                  <span>{bucket.label}</span>
+                  <div className="admin-analytics-bar-track">
+                    <div className="admin-analytics-bar-fill" style={{ width: bucket.width }} />
+                  </div>
+                  <strong>{formatCurrency(bucket.value)}</strong>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="admin-panel-card">
+            <div className="admin-panel-head">
+              <div>
+                <p className="admin-panel-kicker">Signup trend</p>
+                <h3>User registrations by month</h3>
+              </div>
+            </div>
+            <div className="admin-analytics-series">
+              {signupTrend.map((bucket) => (
+                <div key={bucket.key} className="admin-analytics-row">
+                  <span>{bucket.label}</span>
+                  <div className="admin-analytics-bar-track">
+                    <div className="admin-analytics-bar-fill admin-analytics-bar-fill-soft" style={{ width: bucket.width }} />
+                  </div>
+                  <strong>{bucket.value}</strong>
+                </div>
+              ))}
+            </div>
+          </article>
+        </section>
+
+        <section className="admin-overview-grid admin-analytics-grid">
+          <article className="admin-panel-card">
+            <div className="admin-panel-head">
+              <div>
+                <p className="admin-panel-kicker">Product performance</p>
+                <h3>Top plans by paid revenue</h3>
+              </div>
+            </div>
+            {topPlans.length ? (
+              <div className="admin-mini-list">
+                {topPlans.map((plan) => (
+                  <div key={plan.label} className="admin-mini-row admin-mini-row-static">
+                    <div>
+                      <strong>{plan.label}</strong>
+                      <span>{plan.orders} orders</span>
+                    </div>
+                    <div className="admin-mini-row-meta">
+                      <small>{formatCurrency(plan.revenue)}</small>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-empty-card">
+                <strong>No plan data yet</strong>
+                <p>Plan performance will appear once orders start coming through the app.</p>
+              </div>
+            )}
+          </article>
+
+          <article className="admin-panel-card">
+            <div className="admin-panel-head">
+              <div>
+                <p className="admin-panel-kicker">Order quality</p>
+                <h3>Status distribution</h3>
+              </div>
+            </div>
+            {statusMix.length ? (
+              <div className="admin-mini-list">
+                {statusMix.map((status) => (
+                  <div key={status.label} className="admin-mini-row admin-mini-row-static">
+                    <div>
+                      <strong>{status.label}</strong>
+                      <span>{status.count} orders</span>
+                    </div>
+                    <div className="admin-mini-row-meta">
+                      <span className={`admin-tag admin-tag-${status.tone}`}>{status.label}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-empty-card">
+                <strong>No order quality data yet</strong>
+                <p>Order status mix will show up once transactions are recorded.</p>
+              </div>
+            )}
+          </article>
+        </section>
+
+        <section className="admin-overview-grid admin-analytics-grid">
+          <article className="admin-panel-card">
+            <div className="admin-panel-head">
+              <div>
+                <p className="admin-panel-kicker">Acquisition mix</p>
+                <h3>Providers and top countries</h3>
+              </div>
+            </div>
+            <div className="admin-analytics-split">
+              <div className="admin-mini-list">
+                {providerMix.map((provider) => (
+                  <div key={provider.label} className="admin-mini-row admin-mini-row-static">
+                    <div>
+                      <strong>{provider.label}</strong>
+                      <span>Auth provider</span>
+                    </div>
+                    <div className="admin-mini-row-meta">
+                      <small>{provider.count} users</small>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="admin-mini-list">
+                {topCountries.map((country) => (
+                  <div key={country.label} className="admin-mini-row admin-mini-row-static">
+                    <div>
+                      <strong>{country.label}</strong>
+                      <span>Registered users</span>
+                    </div>
+                    <div className="admin-mini-row-meta">
+                      <small>{country.count}</small>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </article>
+
+          <article className="admin-panel-card">
+            <div className="admin-panel-head">
+              <div>
+                <p className="admin-panel-kicker">Referral leaders</p>
+                <h3>Top codes this month</h3>
+              </div>
+            </div>
+            {topReferralCodes.length ? (
+              <div className="admin-mini-list">
+                {topReferralCodes.map((referral) => (
+                  <div key={referral.code} className="admin-mini-row admin-mini-row-static">
+                    <div>
+                      <strong>{referral.agentName || referral.agentEmail || referral.code}</strong>
+                      <span>{referral.code}</span>
+                    </div>
+                    <div className="admin-mini-row-meta">
+                      <small>{formatCurrency(referral.monthPaidRevenue)}</small>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-empty-card">
+                <strong>No referral leaders yet</strong>
+                <p>Top agent codes will appear here once referred paid orders start coming in.</p>
+              </div>
+            )}
           </article>
         </section>
       </div>

@@ -2513,6 +2513,10 @@
   gap: 1rem;
 }
 
+.admin-analytics-grid {
+  align-items: start;
+}
+
 .admin-panel-card,
 .admin-detail-card {
   min-width: 0;
@@ -2930,6 +2934,65 @@
 .admin-mini-list {
   display: grid;
   gap: 0.7rem;
+}
+
+.admin-mini-row-static {
+  cursor: default;
+}
+
+.admin-mini-row-static:hover {
+  background: #fffdfa;
+  border-color: rgba(145, 94, 52, 0.1);
+}
+
+.admin-analytics-series {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.admin-analytics-row {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.admin-analytics-row span,
+.admin-analytics-row strong {
+  font-size: 0.84rem;
+}
+
+.admin-analytics-row span {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.admin-analytics-row strong {
+  color: var(--text);
+}
+
+.admin-analytics-bar-track {
+  position: relative;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: rgba(145, 94, 52, 0.08);
+  overflow: hidden;
+}
+
+.admin-analytics-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #c98a56 0%, #9d693b 100%);
+}
+
+.admin-analytics-bar-fill-soft {
+  background: linear-gradient(90deg, #d9c1a2 0%, #b4865f 100%);
+}
+
+.admin-analytics-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
 }
 
 .admin-mini-row {
