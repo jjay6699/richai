@@ -1027,7 +1027,8 @@
   bottom: 1.25rem;
   z-index: 60;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: stretch;
   gap: 1rem;
   width: min(34rem, calc(100vw - 1.5rem));
   padding: 1rem 1.05rem;
@@ -1068,9 +1069,10 @@
 
 .cookie-banner-actions {
   display: flex;
-  flex: 0 0 auto;
+  width: 100%;
   align-items: center;
   gap: 0.65rem;
+  justify-content: flex-end;
 }
 
 .cookie-banner-button {
@@ -1104,6 +1106,8 @@
 }
 
 .cookie-banner-button-muted:hover {
+  color: #fffaf4;
+  background: #87542e;
   box-shadow: none;
 }
 
