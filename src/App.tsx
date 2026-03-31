@@ -5,41 +5,39 @@ import AppDownloadModal from "./AppDownloadModal";
 import ContactPage from "./ContactPage";
 import IngredientsPage from "./IngredientsPage";
 import LegalPage from "./LegalPage";
+import SiteFooter from "./SiteFooter";
+import SiteLogo from "./SiteLogo";
 import { applySeo } from "./seo";
 import "./App.css";
 
 const howItWorksSteps = [
   {
-    title: "Deep Clinical Decoding",
+    title: "Deep Biomarker Decoding",
     meta: "Step 1",
     body:
-      "Upload lab reports or DNA data. Our advanced AI, trained on over 500,000 peer-reviewed journals, translates dense biomarkers into clear, actionable insights.",
-    tone: "tone-energy",
-    image: "/benefits/energy.jpg"
+      "Upload lab reports or DNA data. Our advanced AI, trained on over 500,000 peer-reviewed scientific journals, translates dense biomarkers into clear, actionable lifestyle insights.",
+    tone: "tone-energy"
   },
   {
     title: "Live Wearable Sync",
     meta: "Step 2",
     body:
-      "Continuous, 24/7 biomarker tracking via seamless smartwatch integration. Nutritional recommendations adjust around sleep, stress, and activity levels.",
-    tone: "tone-focus",
-    image: "/benefits/focus.jpg"
+      "Continuous, 24/7 biomarker tracking via seamless smartwatch integration. We adjust nutritional recommendations based on daily sleep, stress, and activity levels.",
+    tone: "tone-focus"
   },
   {
     title: "Dynamic Health Profiling",
     meta: "Step 3",
     body:
-      "Input your baseline metrics during registration and update your health data daily to continuously track, manage, and understand your evolving health condition.",
-    tone: "tone-sleep",
-    image: "/benefits/sleep.jpg"
+      "Input your baseline metrics during registration and update your wellness data daily to continuously track, manage, and understand your evolving lifestyle needs.",
+    tone: "tone-sleep"
   },
   {
-    title: "24/7 AI Health Advisor",
+    title: "24/7 AI Wellness Advisor",
     meta: "Step 4",
     body:
-      "Access instant, reliable support through live chat with our expertly trained AI health advisor to confidently discuss and understand health issues or concerns.",
-    tone: "tone-recovery",
-    image: "/benefits/recovery.jpg"
+      "Access instant, reliable support through live chat with our expertly trained AI advisor to confidently discuss and optimize your daily wellness and nutritional goals.",
+    tone: "tone-recovery"
   }
 ];
 
@@ -70,20 +68,20 @@ const ingredientPillars = [
 const technologyHighlights = [
   {
     value: "500k+",
-    label: "Medical studies",
-    body: "Recommendations grounded in broad clinical evidence.",
+    label: "Scientific studies",
+    body: "An AI engine analyzing over 500,000 studies keeps every recommendation evidence-based.",
     tone: "science-journals"
   },
   {
     value: "Private",
-    label: "Protected handling",
-    body: "Health data handled with a more secure, privacy-first approach.",
+    label: "Private by design",
+    body: "Military-grade encryption keeps lab and wearable data secured on the user's local device.",
     tone: "science-private"
   },
   {
     value: "Adaptive",
-    label: "Always updating",
-    body: "Plans evolve as wearable and diagnostic inputs change.",
+    label: "Dynamic adaptation",
+    body: "Your personalized protocol evolves as smartwatch data updates and baseline metrics improve.",
     tone: "science-live"
   }
 ];
@@ -190,7 +188,7 @@ function MarketingPage() {
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       >
         <a className="brand" href="/">
-          <span className="brand-wordmark">RicHealth AI</span>
+          <SiteLogo className="brand-logo" />
         </a>
 
         <button
@@ -281,12 +279,12 @@ function MarketingPage() {
               animate="show"
             >
               <motion.p variants={fadeUp} className="hero-label">
-                The next evolution in precision health
+                The next evolution in precision wellness
               </motion.p>
               <motion.h1 variants={fadeUp}>Decode your biology. Design your best life.</motion.h1>
               <motion.p variants={fadeUp} className="hero-copy">
-                We are bridging the gap between clinical diagnostics, real-time lifestyle tracking, and pure
-                wellness to create a proactive healthcare ecosystem.
+                We are bridging the gap between your personal health data, real-time lifestyle tracking, and pure
+                wellness to create a proactive, holistic ecosystem.
               </motion.p>
               <motion.button
                 variants={fadeUp}
@@ -318,13 +316,13 @@ function MarketingPage() {
               How it works
             </motion.p>
             <motion.h2 variants={fadeUp}>
-              <span className="heading-line">The ultimate health loop.</span>
+              <span className="heading-line">The ultimate wellness loop.</span>
               <br />
-              Connect data with nutrition needs.
+              Connect between data and nutrition needs.
             </motion.h2>
             <motion.p variants={fadeUp}>
-              RicHealth AI connects diagnostics, wearable signals, and continuous health profiling so recommendations
-              stay practical, timely, and personalized as your condition evolves.
+              RicHealth AI connects biomarkers, wearable signals, and continuous wellness profiling so
+              recommendations stay practical, timely, and personalized as your lifestyle evolves.
             </motion.p>
             <motion.a
               variants={fadeUp}
@@ -351,7 +349,6 @@ function MarketingPage() {
                 variants={fadeUp}
                 whileHover={{ y: -8, scale: 1.02, transition: { type: "spring", stiffness: 300 } }}
                 className={`benefit-tile ${step.tone}`}
-                style={{ backgroundImage: `url(${step.image})` }}
               >
                 <div className="benefit-overlay" />
                 <div className="benefit-badge" aria-hidden="true" />
@@ -377,7 +374,7 @@ function MarketingPage() {
             <motion.h2 variants={fadeUp}>Tailored to you. Sourced from the earth.</motion.h2>
             <motion.p variants={fadeUp} className="paths-copy">
               Instead of generic pills, we formulate a 100% natural, ethically sourced custom superfood blend tailored
-              to your deficiencies.
+              to your unique nutritional gaps.
             </motion.p>
           </motion.div>
 
@@ -442,8 +439,8 @@ function MarketingPage() {
             </motion.p>
             <motion.h2 variants={fadeUp}>Unprecedented insight, in real-time</motion.h2>
             <motion.p variants={fadeUp} className="science-body">
-              The platform is framed around clinically grounded recommendations, secure health data handling, and a
-              protocol that adapts as new wearable and diagnostic information comes in.
+              The platform is built around evidence-based recommendations, private data handling, and a protocol that
+              adapts with you as wearable and baseline information changes.
             </motion.p>
 
             <motion.div variants={staggerContainer} className="science-proof-grid science-proof-grid-three">
@@ -475,7 +472,7 @@ function MarketingPage() {
             variants={staggerContainer}
           >
             <motion.p variants={fadeUp} className="final-cta-kicker">
-              Affordable subscription plan
+              Affordable subscription plan & personalized nutrition
             </motion.p>
             <motion.h2 variants={fadeUp}>Ready to stop predicting health and start building it?</motion.h2>
             <motion.p variants={fadeUp} className="final-cta-copy">
@@ -497,55 +494,7 @@ function MarketingPage() {
 
       <AppDownloadModal isOpen={isDownloadModalOpen} onClose={closeDownloadModal} />
 
-      <footer className="site-footer" id="contact">
-        <div className="site-footer-inner">
-          <div className="site-footer-top">
-            <div className="site-footer-brand-block">
-              <span className="site-footer-brand">RicHealth AI</span>
-              <p className="site-footer-summary">
-                Precision health built around diagnostics, wearable context, and personalized natural nutrition.
-              </p>
-            </div>
-
-            <div className="site-footer-columns">
-              <div className="site-footer-column">
-                <span className="site-footer-heading">Platform</span>
-                <a href="#solution">How it works</a>
-                <a href="#product">Your blend</a>
-                <a href="/ingredients">Ingredients</a>
-                <a href="#technology">Technology & trust</a>
-              </div>
-
-              <div className="site-footer-column">
-                <span className="site-footer-heading">Company</span>
-                <a href="/">About</a>
-                <a href="/contact">Contact</a>
-                <a href="/">Social Media</a>
-              </div>
-
-              <div className="site-footer-column">
-                <span className="site-footer-heading">Legal</span>
-                <a href="/privacy-policy">Privacy Policy</a>
-                <a href="/terms-of-service">Terms of Service</a>
-                <a href="/cookies">Cookies</a>
-                <a href="/shipping-and-return-policy">Shipping and return policy</a>
-              </div>
-
-              <div className="site-footer-column">
-                <span className="site-footer-heading">Reach us</span>
-                <a href="mailto:hello@richealth.ai">hello@richealth.ai</a>
-                <a href="tel:+60164476899">+60164476899</a>
-                <span className="site-footer-meta">Mon to Fri, 9:00 AM to 6:00 PM</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="site-footer-bottom">
-            <span className="site-footer-meta">© 2026 RicHealth AI. All rights reserved.</span>
-            <span className="site-footer-meta">Affordable subscription plan and personalized nutrition.</span>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
@@ -627,7 +576,7 @@ function App() {
     applySeo({
       title: "RicHealth AI | Precision Health and Personalized Nutrition",
       description:
-        "RicHealth AI connects diagnostics, wearable insights, and personalized nutrition to help users build a smarter health journey.",
+        "RicHealth AI connects personal health data, wearable insights, and personalized nutrition to help users build a smarter wellness journey.",
       path: "/"
     });
   }, [pathname]);
