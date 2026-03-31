@@ -24,10 +24,11 @@ const mimeTypes = new Map([
   [".txt", "text/plain; charset=utf-8"]
 ]);
 
-const sendFile = async (response, filePath) => {
+const sendFile = async (response, filePath, extraHeaders = {}) => {
   const ext = path.extname(filePath).toLowerCase();
   response.writeHead(200, {
-    "Content-Type": mimeTypes.get(ext) || "application/octet-stream"
+    "Content-Type": mimeTypes.get(ext) || "application/octet-stream",
+    ...extraHeaders
   });
   createReadStream(filePath).pipe(response);
 };
@@ -157,7 +158,11 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
-    await sendFile(response, path.join(distDir, "index.html"));
+    const htmlHeaders = pathname.startsWith("/admin")
+      ? { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet" }
+      : {};
+
+    await sendFile(response, path.join(distDir, "index.html"), htmlHeaders);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Server error";
     response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
