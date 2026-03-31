@@ -1078,8 +1078,8 @@
   border: none;
   border-radius: 999px;
   padding: 0.78rem 1.15rem;
-  background: var(--brand-accent);
-  color: var(--text-inverse);
+  background: #9d6a3d;
+  color: #fffaf4;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -1092,6 +1092,7 @@
 
 .cookie-banner-button:hover {
   transform: translateY(-1px);
+  background: #87542e;
   box-shadow: 0 18px 34px rgba(157, 106, 61, 0.26);
 }
 
