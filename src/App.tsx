@@ -242,7 +242,7 @@ function MarketingPage() {
               animate="show"
               variants={heroCardFloat}
             >
-              <span className="data-label">Clinical diagnostics</span>
+              <span className="data-label">Health data</span>
               <strong>Decoded clearly</strong>
             </motion.div>
 
