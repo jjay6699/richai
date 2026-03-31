@@ -59,14 +59,12 @@ interface AdminReferralSummary {
 }
 
 type AdminSection = "overview" | "users" | "sales" | "agents" | "analytics";
-type FetchStatus = "idle" | "restored" | "authenticated" | "refresh_failed" | "expired";
+type FetchStatus = "idle" | "authenticated" | "refresh_failed" | "expired";
 type DateRangeFilter = "all" | "7d" | "30d" | "90d";
 type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "name_asc" | "email_asc";
 type OrderSortKey = "createdAt_desc" | "createdAt_asc" | "price_desc" | "price_asc" | "status_asc" | "customer_asc";
 type AgentSortKey = "monthPaidRevenue_desc" | "paidRevenue_desc" | "totalOrders_desc" | "latestSaleAt_desc" | "code_asc";
 
-const STORAGE_KEY = "richai_admin_credentials";
-const DASHBOARD_CACHE_KEY = "richai_admin_dashboard_cache";
 const apiBase = (import.meta.env.VITE_APP_API_URL || "/api").replace(/\/$/, "");
 const directApiBase = (import.meta.env.VITE_ADMIN_DIRECT_API_URL || "https://healthai.up.railway.app/api").replace(/\/$/, "");
 const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; description: string }> = [
@@ -340,7 +338,7 @@ const requestReferralCodeUpdate = async (
 };
 
 function AdminPage() {
-  const [username, setUsername] = useState("admin");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [captchaLeft, setCaptchaLeft] = useState(() => Math.floor(Math.random() * 9) + 1);
   const [captchaRight, setCaptchaRight] = useState(() => Math.floor(Math.random() * 9) + 1);
@@ -348,7 +346,7 @@ function AdminPage() {
   const [dashboard, setDashboard] = useState<AdminOverview | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [status, setStatus] = useState<FetchStatus>("idle");
+  const [, setStatus] = useState<FetchStatus>("idle");
   const [flashMessage, setFlashMessage] = useState("");
   const [activeSection, setActiveSection] = useState<AdminSection>("overview");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -723,7 +721,7 @@ function AdminPage() {
   const fetchDashboard = async (
     nextUsername: string,
     nextPassword: string,
-    options?: { preserveSection?: boolean; restoredSession?: boolean }
+    options?: { preserveSection?: boolean }
   ) => {
     setIsLoading(true);
     setError("");
@@ -748,20 +746,13 @@ function AdminPage() {
         );
       }
 
-      window.sessionStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ username: nextUsername, password: nextPassword })
-      );
-      window.sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(payload));
       setDashboard(payload as AdminOverview);
       setLastSyncedAt(Date.now());
       setSelectedUserId((payload as AdminOverview).users[0]?.id || null);
       setSelectedOrderId((payload as AdminOverview).orders[0]?.id || null);
-      setStatus(options?.restoredSession ? "restored" : "authenticated");
+      setStatus("authenticated");
       setFlashMessage(
-        options?.restoredSession
-          ? "Restored your admin session."
-          : "Dashboard synced successfully."
+        "Dashboard synced successfully."
       );
       if (!options?.preserveSection) {
         setActiveSection("overview");
@@ -796,39 +787,6 @@ function AdminPage() {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    const cachedDashboard = window.sessionStorage.getItem(DASHBOARD_CACHE_KEY);
-    if (cachedDashboard) {
-      try {
-        const parsedCache = JSON.parse(cachedDashboard) as AdminOverview;
-        if (parsedCache?.stats && Array.isArray(parsedCache?.users) && Array.isArray(parsedCache?.orders)) {
-          setDashboard(parsedCache);
-          setLastSyncedAt(Date.now());
-          setSelectedUserId(parsedCache.users[0]?.id || null);
-          setSelectedOrderId(parsedCache.orders[0]?.id || null);
-          setStatus("refresh_failed");
-          setFlashMessage("Loaded last synced admin data. Re-authenticating...");
-        }
-      } catch {
-        window.sessionStorage.removeItem(DASHBOARD_CACHE_KEY);
-      }
-    }
-
-    const stored = window.sessionStorage.getItem(STORAGE_KEY);
-    if (!stored) return;
-
-    try {
-      const parsed = JSON.parse(stored) as { username?: string; password?: string };
-      if (parsed.username) setUsername(parsed.username);
-      if (parsed.password) {
-        setPassword(parsed.password);
-        void fetchDashboard(parsed.username || "admin", parsed.password, { preserveSection: true, restoredSession: true });
-      }
-    } catch {
-      window.sessionStorage.removeItem(STORAGE_KEY);
-    }
-  }, []);
 
   useEffect(() => {
     if (filteredUsers.length && !filteredUsers.some((user) => user.id === selectedUserId)) {
@@ -883,8 +841,7 @@ function AdminPage() {
   };
 
   const handleLogout = () => {
-    window.sessionStorage.removeItem(STORAGE_KEY);
-    window.sessionStorage.removeItem(DASHBOARD_CACHE_KEY);
+    setUsername("");
     setPassword("");
     setDashboard(null);
     setError("");
@@ -994,7 +951,6 @@ function AdminPage() {
           ...current,
           users: current.users.map((user) => (user.id === updatedUser.id ? { ...user, referralCode: updatedUser.referralCode || null } : user))
         };
-        window.sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(nextDashboard));
         return nextDashboard;
       });
       setReferralCodeInput(updatedUser.referralCode || "");
@@ -2328,7 +2284,7 @@ function AdminPage() {
             <div className="admin-session-card">
               <span className="admin-status-label">Signed in as</span>
               <strong>{username.trim() || "admin"}</strong>
-              <small>{status === "restored" ? "Session restored from this browser." : "Session stored for this browser session."}</small>
+              <small>Credentials stay in memory only and clear when you close or sign out.</small>
             </div>
           ) : null}
           <div className="admin-side-actions">
