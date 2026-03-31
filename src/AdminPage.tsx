@@ -7,6 +7,7 @@ interface AdminUser {
   name: string | null;
   provider: string;
   country?: string | null;
+  referralCode?: string | null;
   createdAt: number;
   lastLoginAt: number;
 }
@@ -42,6 +43,9 @@ interface AdminOverview {
 
 interface AdminReferralSummary {
   code: string;
+  agentUserId: string | null;
+  agentName: string | null;
+  agentEmail: string | null;
   totalOrders: number;
   totalRevenue: number;
   paidOrders: number;
@@ -296,6 +300,45 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
   throw lastUpstreamError instanceof Error ? lastUpstreamError : new TypeError("Unable to reach the admin service.");
 };
 
+const requestReferralCodeUpdate = async (
+  nextUsername: string,
+  nextPassword: string,
+  userId: string,
+  referralCode: string | null
+) => {
+  const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword), "Content-Type": "application/json" };
+  const payload = { referralCode };
+  let lastErrorResponse: Response | null = null;
+
+  const attempts: Array<() => Promise<Response>> = [
+    () =>
+      fetch(`${apiBase}/admin/users/${userId}/referral-code`, {
+        method: "PUT",
+        headers: authHeader,
+        body: JSON.stringify(payload)
+      }),
+    () =>
+      fetch(`${directApiBase}/admin/users/${userId}/referral-code`, {
+        method: "PUT",
+        headers: authHeader,
+        body: JSON.stringify(payload)
+      })
+  ];
+
+  for (const run of attempts) {
+    try {
+      const response = await run();
+      if (response.ok) return response;
+      lastErrorResponse = response;
+    } catch {
+      // continue to next strategy
+    }
+  }
+
+  if (lastErrorResponse) return lastErrorResponse;
+  throw new TypeError("Unable to reach the admin service.");
+};
+
 function AdminPage() {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
@@ -322,6 +365,8 @@ function AdminPage() {
   const [selectedAgentCode, setSelectedAgentCode] = useState<string | null>(null);
   const [agentQuery, setAgentQuery] = useState("");
   const [agentSort, setAgentSort] = useState<AgentSortKey>("monthPaidRevenue_desc");
+  const [referralCodeInput, setReferralCodeInput] = useState("");
+  const [isSavingReferralCode, setIsSavingReferralCode] = useState(false);
   const [globalLookupQuery, setGlobalLookupQuery] = useState("");
   const [copiedField, setCopiedField] = useState("");
 
@@ -414,6 +459,11 @@ function AdminPage() {
     if (!dashboard?.orders.length) return [];
 
     const monthStart = getCurrentMonthStart();
+    const referralAgentMap = new Map(
+      (dashboard?.users || [])
+        .filter((user) => user.referralCode?.trim())
+        .map((user) => [user.referralCode!.trim().toUpperCase(), user] as const)
+    );
     const referralMap = new Map<
       string,
       AdminReferralSummary & { customerKeys: Set<string> }
@@ -428,6 +478,9 @@ function AdminPage() {
         referralMap.get(code) ||
         {
           code,
+          agentUserId: referralAgentMap.get(code)?.id || null,
+          agentName: referralAgentMap.get(code)?.name || null,
+          agentEmail: referralAgentMap.get(code)?.email || null,
           totalOrders: 0,
           totalRevenue: 0,
           paidOrders: 0,
@@ -796,6 +849,10 @@ function AdminPage() {
   }, [filteredReferrals, selectedAgentCode]);
 
   useEffect(() => {
+    setReferralCodeInput(selectedUser?.referralCode || "");
+  }, [selectedUser?.id, selectedUser?.referralCode]);
+
+  useEffect(() => {
     if (!copiedField) return;
 
     const timeout = window.setTimeout(() => setCopiedField(""), 1800);
@@ -848,13 +905,14 @@ function AdminPage() {
 
   const exportUsersCsv = () => {
     triggerCsvDownload("admin-users.csv", [
-      ["User ID", "Name", "Email", "Provider", "Country", "Registered", "Last Login"],
+      ["User ID", "Name", "Email", "Provider", "Country", "Referral Code", "Registered", "Last Login"],
       ...filteredUsers.map((user) => [
         user.id,
         user.name || "",
         user.email || "",
         getProviderLabel(user.provider),
         user.country || "",
+        user.referralCode || "",
         formatDate(user.createdAt),
         formatDate(user.lastLoginAt)
       ])
@@ -895,6 +953,57 @@ function AdminPage() {
         formatDate(summary.latestSaleAt)
       ])
     ]);
+  };
+
+  const handleSaveReferralCode = async () => {
+    if (!selectedUser) return;
+
+    setIsSavingReferralCode(true);
+    setError("");
+    setFlashMessage("");
+
+    try {
+      const normalizedReferralCode = referralCodeInput.trim().toUpperCase();
+      const response = await requestReferralCodeUpdate(
+        username.trim(),
+        password,
+        selectedUser.id,
+        normalizedReferralCode || null
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | { user?: AdminUser; error?: string }
+        | null;
+
+      if (!response.ok || !payload?.user) {
+        if (payload?.error === "invalid_referral_code") {
+          throw new Error("Referral code must be 4-24 characters using only letters and numbers.");
+        }
+        if (payload?.error === "referral_code_in_use") {
+          throw new Error("That referral code is already assigned to another user.");
+        }
+        if (payload?.error === "user_not_found") {
+          throw new Error("That user could not be found in the app service.");
+        }
+        throw new Error("Unable to save referral code.");
+      }
+
+      const updatedUser = payload.user;
+      setDashboard((current) => {
+        if (!current) return current;
+        const nextDashboard = {
+          ...current,
+          users: current.users.map((user) => (user.id === updatedUser.id ? { ...user, referralCode: updatedUser.referralCode || null } : user))
+        };
+        window.sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(nextDashboard));
+        return nextDashboard;
+      });
+      setReferralCodeInput(updatedUser.referralCode || "");
+      setFlashMessage(updatedUser.referralCode ? "Referral code saved." : "Referral code cleared.");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to save referral code.");
+    } finally {
+      setIsSavingReferralCode(false);
+    }
   };
 
   const openLookupResult = (result: { type: "user" | "order"; id: string }) => {
@@ -1124,6 +1233,7 @@ function AdminPage() {
                   <th>Email</th>
                   <th>Provider</th>
                   <th>Country</th>
+                  <th>Referral code</th>
                   <th>Registered</th>
                   <th>Last login</th>
                 </tr>
@@ -1145,6 +1255,7 @@ function AdminPage() {
                         </span>
                       </td>
                       <td>{user.country || "--"}</td>
+                      <td>{user.referralCode || "--"}</td>
                       <td>{formatDate(user.createdAt)}</td>
                       <td>{formatDate(user.lastLoginAt)}</td>
                     </tr>
@@ -1196,6 +1307,10 @@ function AdminPage() {
                 <dd>{formatDate(selectedUser.createdAt)}</dd>
               </div>
               <div>
+                <dt>Referral code</dt>
+                <dd>{selectedUser.referralCode || "--"}</dd>
+              </div>
+              <div>
                 <dt>Last login</dt>
                 <dd>{formatDate(selectedUser.lastLoginAt)}</dd>
               </div>
@@ -1220,6 +1335,31 @@ function AdminPage() {
                 </dd>
               </div>
             </dl>
+
+            <div className="admin-related-panel">
+              <div className="admin-related-panel-head">
+                <p className="admin-panel-kicker">Agent referral code</p>
+                <strong>Assign or update code</strong>
+              </div>
+              <div className="admin-controls admin-controls-inline">
+                <label className="admin-control-field">
+                  <span>Referral code</span>
+                  <input
+                    value={referralCodeInput}
+                    onChange={(event) => setReferralCodeInput(event.target.value.toUpperCase())}
+                    placeholder="e.g. ORFD26"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="admin-link-button"
+                  onClick={handleSaveReferralCode}
+                  disabled={isSavingReferralCode}
+                >
+                  {isSavingReferralCode ? "Saving..." : "Save code"}
+                </button>
+              </div>
+            </div>
 
             <div className="admin-related-panel">
               <div className="admin-related-panel-head">
@@ -1641,6 +1781,7 @@ function AdminPage() {
               <table className="admin-table">
                 <thead>
                   <tr>
+                    <th>Agent</th>
                     <th>Code</th>
                     <th>Monthly paid sales</th>
                     <th>Monthly paid revenue</th>
@@ -1659,6 +1800,7 @@ function AdminPage() {
                         className={isSelected ? "is-selected" : ""}
                         onClick={() => setSelectedAgentCode(summary.code)}
                       >
+                        <td>{summary.agentName || summary.agentEmail || "--"}</td>
                         <td>{summary.code}</td>
                         <td>{summary.monthPaidOrders}</td>
                         <td>{formatCurrency(summary.monthPaidRevenue)}</td>
@@ -1704,6 +1846,14 @@ function AdminPage() {
               </div>
 
               <dl className="admin-detail-grid">
+                <div>
+                  <dt>Agent</dt>
+                  <dd>{selectedAgent.agentName || "--"}</dd>
+                </div>
+                <div>
+                  <dt>Agent email</dt>
+                  <dd>{selectedAgent.agentEmail || "--"}</dd>
+                </div>
                 <div>
                   <dt>Total orders</dt>
                   <dd>{selectedAgent.totalOrders}</dd>
@@ -1775,6 +1925,20 @@ function AdminPage() {
                   <div className="admin-related-note">No orders have used this referral code yet.</div>
                 )}
               </div>
+              {selectedAgent.agentUserId ? (
+                <div className="admin-related-action">
+                  <button
+                    type="button"
+                    className="admin-link-button"
+                    onClick={() => {
+                      setSelectedUserId(selectedAgent.agentUserId);
+                      setActiveSection("users");
+                    }}
+                  >
+                    Open agent user
+                  </button>
+                </div>
+              ) : null}
             </>
           ) : (
             <div className="admin-empty-card admin-empty-detail">
