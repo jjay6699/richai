@@ -7,7 +7,7 @@ import IngredientsPage from "./IngredientsPage";
 import LegalPage from "./LegalPage";
 import SiteFooter from "./SiteFooter";
 import SiteLogo from "./SiteLogo";
-import { applySeo } from "./seo";
+import { applySeo, trackPageView } from "./seo";
 import "./App.css";
 
 const howItWorksSteps = [
@@ -503,82 +503,107 @@ function App() {
   const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
 
   useEffect(() => {
+    let nextTitle = "RicHealth AI | Precision Wellness and Personalized Nutrition";
+    let nextPath = "/";
+
     if (pathname.startsWith("/admin")) {
+      nextTitle = "Admin | RicHealth AI";
+      nextPath = "/admin";
       applySeo({
-        title: "Admin | RicHealth AI",
+        title: nextTitle,
         description: "Protected RicHealth AI admin access.",
-        path: "/admin",
+        path: nextPath,
         robots: "noindex,nofollow"
       });
+      trackPageView({ title: nextTitle, path: nextPath });
       return;
     }
 
     if (pathname.startsWith("/contact")) {
+      nextTitle = "Contact RicHealth AI | Wellness Support, Partnerships, and Product Enquiries";
+      nextPath = "/contact";
       applySeo({
-        title: "Contact RicHealth AI | Wellness Support, Partnerships, and Product Enquiries",
+        title: nextTitle,
         description:
           "Contact RicHealth AI for personalized nutrition questions, ingredient enquiries, wellness support, and partnership opportunities.",
-        path: "/contact"
+        path: nextPath
       });
+      trackPageView({ title: nextTitle, path: nextPath });
       return;
     }
 
     if (pathname.startsWith("/ingredients")) {
+      nextTitle = "Ingredients | Natural Superfoods and Functional Blends by RicHealth AI";
+      nextPath = "/ingredients";
       applySeo({
-        title: "Ingredients | Natural Superfoods and Functional Blends by RicHealth AI",
+        title: nextTitle,
         description:
           "Explore RicHealth AI ingredients, from greens and antioxidant berries to functional adaptogens and signature natural superfood blends.",
-        path: "/ingredients"
+        path: nextPath
       });
+      trackPageView({ title: nextTitle, path: nextPath });
       return;
     }
 
     if (pathname.startsWith("/privacy-policy")) {
+      nextTitle = "Privacy Policy | RicHealth AI";
+      nextPath = "/privacy-policy";
       applySeo({
-        title: "Privacy Policy | RicHealth AI",
+        title: nextTitle,
         description:
           "Read how RicHealth AI collects, uses, stores, and protects personal data across the website and related services.",
-        path: "/privacy-policy"
+        path: nextPath
       });
+      trackPageView({ title: nextTitle, path: nextPath });
       return;
     }
 
     if (pathname.startsWith("/terms-of-service")) {
+      nextTitle = "Terms of Service | RicHealth AI";
+      nextPath = "/terms-of-service";
       applySeo({
-        title: "Terms of Service | RicHealth AI",
+        title: nextTitle,
         description:
           "Review the RicHealth AI website and service terms covering access, content, permitted use, and liability.",
-        path: "/terms-of-service"
+        path: nextPath
       });
+      trackPageView({ title: nextTitle, path: nextPath });
       return;
     }
 
     if (pathname.startsWith("/cookies")) {
+      nextTitle = "Cookie Policy | RicHealth AI";
+      nextPath = "/cookies";
       applySeo({
-        title: "Cookie Policy | RicHealth AI",
+        title: nextTitle,
         description:
           "Learn how RicHealth AI uses cookies, pixels, and similar technologies to operate the website and improve user experience.",
-        path: "/cookies"
+        path: nextPath
       });
+      trackPageView({ title: nextTitle, path: nextPath });
       return;
     }
 
     if (pathname.startsWith("/shipping-and-return-policy")) {
+      nextTitle = "Shipping and Return Policy | RicHealth AI Personalized Nutrition";
+      nextPath = "/shipping-and-return-policy";
       applySeo({
-        title: "Shipping and Return Policy | RicHealth AI Personalized Nutrition",
+        title: nextTitle,
         description:
           "Read RicHealth AI shipping, delivery, cancellation, return, and refund terms for personalized nutrition orders.",
-        path: "/shipping-and-return-policy"
+        path: nextPath
       });
+      trackPageView({ title: nextTitle, path: nextPath });
       return;
     }
 
     applySeo({
-      title: "RicHealth AI | Precision Wellness and Personalized Nutrition",
+      title: nextTitle,
       description:
         "RicHealth AI connects personal health data, wearable insights, and personalized nutrition to build a smarter, proactive wellness journey.",
-      path: "/"
+      path: nextPath
     });
+    trackPageView({ title: nextTitle, path: nextPath });
   }, [pathname]);
 
   if (pathname.startsWith("/admin")) {

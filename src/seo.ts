@@ -7,6 +7,13 @@ export interface SeoConfig {
 
 import { DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_ALT, SITE_NAME, SITE_URL } from "./siteConfig";
 
+declare global {
+  interface Window {
+    dataLayer?: unknown[];
+    gtag?: (...args: unknown[]) => void;
+  }
+}
+
 const upsertMeta = (selector: string, attributes: Record<string, string>, content: string) => {
   let element = document.head.querySelector(selector) as HTMLMetaElement | null;
 
@@ -64,4 +71,18 @@ export const applySeo = ({ title, description, path, robots = "index,follow" }: 
   upsertMeta('meta[name="twitter:image"]', { name: "twitter:image" }, ogImageUrl);
   upsertMeta('meta[name="twitter:image:alt"]', { name: "twitter:image:alt" }, DEFAULT_OG_IMAGE_ALT);
   upsertLink('link[rel="canonical"]', "canonical", canonicalUrl);
+};
+
+export const trackPageView = ({ title, path }: Pick<SeoConfig, "title" | "path">) => {
+  if (typeof window === "undefined") return;
+  if (typeof window.gtag !== "function") return;
+
+  const origin = window.location.origin.includes("localhost") ? SITE_URL : window.location.origin;
+  const pageUrl = new URL(path, origin).toString();
+
+  window.gtag("event", "page_view", {
+    page_title: title,
+    page_location: pageUrl,
+    page_path: path
+  });
 };
