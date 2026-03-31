@@ -410,10 +410,12 @@
   font-size: var(--section-title-size);
   line-height: 1.02;
   letter-spacing: -0.05em;
+  text-wrap: balance;
 }
 
 .heading-line {
   display: inline-block;
+  max-width: 100%;
 }
 
 .benefits-copy p {
@@ -1749,7 +1751,7 @@
   }
 
   .benefits-copy h2 {
-    max-width: none;
+    max-width: 12ch;
     font-size: clamp(2rem, 8vw, var(--section-title-size));
   }
 

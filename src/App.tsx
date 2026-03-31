@@ -316,11 +316,7 @@ function MarketingPage() {
               How it works
             </motion.p>
             <motion.h2 variants={fadeUp}>
-              <span className="heading-line">
-                The ultimate wellness
-                <br />
-                loop.
-              </span>
+              <span className="heading-line">The ultimate wellness loop.</span>
               <br />
               Connect between data and nutrition needs.
             </motion.h2>
