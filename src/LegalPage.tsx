@@ -56,7 +56,7 @@ const legalDocuments: Record<LegalPageType, LegalDocument> = {
       {
         heading: "1. Data controller and contact details",
         body: [
-          "RicHealth AI is responsible for the processing of personal data collected through this website and related services. If you have any privacy-related questions or requests, you may contact us at hello@richealth.ai or call +60 16-447 6899 during our stated business hours in Malaysia.",
+          "RicHealth AI is responsible for the processing of personal data collected through this website and related services. If you have any privacy-related questions or requests, you may contact us at info@richealth.ai or call +60 16-447 6899 during our stated business hours in Malaysia.",
           "Where Malaysian law requires notices, consent language, or access and correction handling, this policy is intended to operate consistently with the PDPA and any applicable subsidiary regulations or official guidance."
         ]
       },
@@ -266,7 +266,7 @@ const legalDocuments: Record<LegalPageType, LegalDocument> = {
       {
         heading: "7. Contact us",
         body: [
-          "If you have questions about our use of cookies or related technologies, you may contact RicHealth AI at hello@richealth.ai or +60 16-447 6899."
+          "If you have questions about our use of cookies or related technologies, you may contact RicHealth AI at info@richealth.ai or +60 16-447 6899."
         ]
       }
     ]
@@ -308,7 +308,7 @@ const legalDocuments: Record<LegalPageType, LegalDocument> = {
       {
         heading: "4. Incorrect, missing, or damaged items",
         body: [
-          "If your order arrives damaged, incomplete, or contains incorrect items, contact us as soon as possible at hello@richealth.ai with your order number and clear photo evidence.",
+          "If your order arrives damaged, incomplete, or contains incorrect items, contact us as soon as possible at info@richealth.ai with your order number and clear photo evidence.",
           "After review, we may provide a replacement, partial refund, or another suitable resolution depending on stock availability and case findings."
         ]
       },
@@ -329,7 +329,7 @@ const legalDocuments: Record<LegalPageType, LegalDocument> = {
       {
         heading: "7. Contact for shipping support",
         body: [
-          "For shipping, delivery, or return support, contact RicHealth AI at hello@richealth.ai or +60 16-447 6899 and include your order number for faster assistance."
+          "For shipping, delivery, or return support, contact RicHealth AI at info@richealth.ai or +60 16-447 6899 and include your order number for faster assistance."
         ]
       }
     ]
@@ -382,12 +382,12 @@ function LegalPage({ pageType }: LegalPageProps) {
           <a href="/#technology">Technology</a>
           <a href="/ingredients">Ingredients</a>
           <a href="/contact">Contact</a>
-          <a className="site-nav-cta" href="mailto:hello@richealth.ai">
+          <a className="site-nav-cta" href="mailto:info@richealth.ai">
             Contact support
           </a>
         </nav>
 
-        <a className="header-cta" href="mailto:hello@richealth.ai">
+        <a className="header-cta" href="mailto:info@richealth.ai">
           Contact support
         </a>
       </motion.header>

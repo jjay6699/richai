@@ -26,9 +26,9 @@ const fadeUp: Variants = {
 const contactCards = [
   {
     label: "General enquiries",
-    value: "hello@richealth.ai",
+    value: "info@richealth.ai",
     body: "Reach out for product questions, ingredient details, and brand enquiries.",
-    href: "mailto:hello@richealth.ai"
+    href: "mailto:info@richealth.ai"
   },
   {
     label: "Partnerships",
@@ -58,7 +58,7 @@ function ContactPage() {
       `Name: ${name || "-"}\nEmail: ${email || "-"}\n\nMessage:\n${message || "-"}`
     );
 
-    window.location.href = `mailto:hello@richealth.ai?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:info@richealth.ai?subject=${subject}&body=${body}`;
   };
 
   return (
@@ -93,12 +93,12 @@ function ContactPage() {
           <a href="/contact" aria-current="page">
             Contact
           </a>
-          <a className="site-nav-cta" href="mailto:hello@richealth.ai">
+          <a className="site-nav-cta" href="mailto:info@richealth.ai">
             Send us an enquiry
           </a>
         </nav>
 
-        <a className="header-cta" href="mailto:hello@richealth.ai">
+        <a className="header-cta" href="mailto:info@richealth.ai">
           Send us an enquiry
         </a>
       </motion.header>
@@ -142,7 +142,7 @@ function ContactPage() {
                 <a className="hero-button" href="#contact-form">
                   Send enquiry
                 </a>
-                <a className="hero-button ingredients-hero-button-secondary" href="mailto:hello@richealth.ai">
+                <a className="hero-button ingredients-hero-button-secondary" href="mailto:info@richealth.ai">
                   Email us directly
                 </a>
               </motion.div>
