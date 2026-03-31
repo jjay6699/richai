@@ -1230,7 +1230,7 @@ function AdminPage() {
           </div>
         {filteredUsers.length ? (
           <div className="admin-table-wrap">
-            <table className="admin-table">
+            <table className="admin-table admin-table-compact">
               <thead>
                 <tr>
                   <th>Name</th>
