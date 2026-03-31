@@ -2194,13 +2194,14 @@
 }
 
 .admin-lookup-field input {
-  min-height: 3rem;
-  padding: 0.82rem 0.95rem;
-  border: 1px solid rgba(145, 94, 52, 0.16);
-  border-radius: 1rem;
+  min-height: 2.85rem;
+  padding: 0.72rem 0.95rem;
+  border: 1px solid rgba(145, 94, 52, 0.14);
+  border-radius: 0.9rem;
   background: rgba(255, 255, 255, 0.88);
   color: var(--text);
-  font-size: 0.94rem;
+  font-size: 0.92rem;
+  font-family: inherit;
 }
 
 .admin-lookup-field input:focus {
@@ -2527,31 +2528,38 @@
 }
 
 .admin-panel-head-tight {
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  align-items: end;
 }
 
 .admin-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: end;
   gap: 0.7rem;
+  width: 100%;
 }
 
 .admin-controls .admin-link-button {
-  min-height: 2.85rem;
-  padding: 0 1rem;
+  min-height: 2.7rem;
+  padding: 0 0.95rem;
+  width: 100%;
 }
 
 .admin-control-field {
   display: grid;
   gap: 0.35rem;
-  min-width: 12rem;
+  min-width: 0;
+}
+
+.admin-control-field-wide {
+  grid-column: span 2;
 }
 
 .admin-control-field span {
   color: var(--text-secondary);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -2559,13 +2567,15 @@
 
 .admin-control-field input,
 .admin-control-field select {
-  min-height: 2.85rem;
-  padding: 0.72rem 0.9rem;
-  border: 1px solid rgba(145, 94, 52, 0.16);
-  border-radius: 0.95rem;
-  background: #fffdf9;
+  min-height: 2.7rem;
+  padding: 0.68rem 0.88rem;
+  border: 1px solid rgba(145, 94, 52, 0.14);
+  border-radius: 0.85rem;
+  background: #fffcf7;
   color: var(--text);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
 .admin-control-field input:focus,
@@ -2574,17 +2584,39 @@
   border-color: rgba(145, 94, 52, 0.24);
 }
 
+.admin-control-field select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 2.5rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(145, 94, 52, 0.82) 50%),
+    linear-gradient(135deg, rgba(145, 94, 52, 0.82) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1rem) calc(50% - 3px),
+    calc(100% - 0.7rem) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
 .admin-filter-summary {
   color: var(--text-secondary);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
   white-space: nowrap;
+  align-self: center;
+  justify-self: end;
+  padding-right: 0.15rem;
 }
 
 .admin-link-button {
   border: 1px solid rgba(145, 94, 52, 0.12);
+  border-radius: 0.9rem;
   background: #fffaf3;
   color: var(--accent-dark);
+  font-size: 0.86rem;
+  font-weight: 800;
+  box-shadow: none;
 }
 
 .admin-link-button:hover {
@@ -3007,6 +3039,14 @@
   .admin-controls,
   .admin-control-field {
     width: 100%;
+  }
+
+  .admin-panel-head-tight {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-control-field-wide {
+    grid-column: span 1;
   }
 
   .admin-controls .admin-link-button {

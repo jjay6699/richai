@@ -1169,10 +1169,10 @@ function AdminPage() {
             <h3>Registrations list</h3>
           </div>
           <div className="admin-controls">
-            <label className="admin-control-field">
-              <span>Search</span>
-              <input
-                value={usersQuery}
+              <label className="admin-control-field admin-control-field-wide">
+                <span>Search</span>
+                <input
+                  value={usersQuery}
                 onChange={(event) => setUsersQuery(event.target.value)}
                 placeholder="Name, email, country, or user ID"
               />
@@ -1425,7 +1425,7 @@ function AdminPage() {
               <h3>Order records</h3>
             </div>
             <div className="admin-controls">
-              <label className="admin-control-field">
+              <label className="admin-control-field admin-control-field-wide">
                 <span>Search</span>
                 <input
                   value={salesQuery}
@@ -1747,7 +1747,7 @@ function AdminPage() {
               <h3>Referral code performance</h3>
             </div>
             <div className="admin-controls">
-              <label className="admin-control-field">
+              <label className="admin-control-field admin-control-field-wide">
                 <span>Search code</span>
                 <input
                   value={agentQuery}
