@@ -421,8 +421,8 @@ function MarketingPage() {
               <div className="science-media-image" style={{ backgroundImage: "url(/hero/powder.jpg)" }} />
               <div className="science-media-wash" />
               <div className="science-media-note">
-                <span className="science-card-label">Unprecedented insight</span>
-                <strong>Clinical evidence, secure handling, and adaptive protocols come together in real time.</strong>
+                <span className="science-card-label">Uncompromised purity</span>
+                <strong>Our premium ingredients blended for your unique wellness needs, with absolutely zero artificial additives.</strong>
                 <div className="science-media-tags">
                   <span>Gluten Free</span>
                   <span>Colorant Free</span>
