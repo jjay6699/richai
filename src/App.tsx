@@ -423,6 +423,11 @@ function MarketingPage() {
               <div className="science-media-note">
                 <span className="science-card-label">Unprecedented insight</span>
                 <strong>Clinical evidence, secure handling, and adaptive protocols come together in real time.</strong>
+                <div className="science-media-tags">
+                  <span>Gluten Free</span>
+                  <span>Colorant Free</span>
+                  <span>Preservative Free</span>
+                </div>
               </div>
             </motion.div>
           </motion.div>
