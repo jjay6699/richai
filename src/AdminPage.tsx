@@ -1161,69 +1161,73 @@ function AdminPage() {
   );
 
   const renderUsers = () => (
-    <section className="admin-master-detail">
-      <article className="admin-panel-card">
-        <div className="admin-panel-head admin-panel-head-tight">
-          <div>
-            <p className="admin-panel-kicker">Users</p>
-            <h3>Registrations list</h3>
-          </div>
-          <div className="admin-controls">
-              <label className="admin-control-field admin-control-field-wide">
-                <span>Search</span>
-                <input
-                  value={usersQuery}
-                onChange={(event) => setUsersQuery(event.target.value)}
-                placeholder="Name, email, country, or user ID"
-              />
-            </label>
-            <label className="admin-control-field">
-              <span>Provider</span>
-              <select
-                value={usersProviderFilter}
-                onChange={(event) => setUsersProviderFilter(event.target.value)}
-              >
-                <option value="all">All providers</option>
-                {providerOptions.map((provider) => (
-                  <option key={provider} value={provider}>
-                    {getProviderLabel(provider)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="admin-control-field">
-              <span>Date range</span>
-              <select
-                value={usersDateRange}
-                onChange={(event) => setUsersDateRange(event.target.value as DateRangeFilter)}
-              >
-                <option value="all">All time</option>
-                <option value="7d">Last 7 days</option>
-                <option value="30d">Last 30 days</option>
-                <option value="90d">Last 90 days</option>
-              </select>
-            </label>
-            <label className="admin-control-field">
-              <span>Sort by</span>
-              <select
-                value={usersSort}
-                onChange={(event) => setUsersSort(event.target.value as UserSortKey)}
-              >
-                <option value="createdAt_desc">Newest registrations</option>
-                <option value="createdAt_asc">Oldest registrations</option>
-                <option value="lastLoginAt_desc">Latest login</option>
-                <option value="name_asc">Name A-Z</option>
-                <option value="email_asc">Email A-Z</option>
-              </select>
-            </label>
-            <button type="button" className="admin-link-button" onClick={exportUsersCsv} disabled={!filteredUsers.length}>
-              Export CSV
-            </button>
-            <span className="admin-filter-summary">
-              Showing {filteredUsers.length} of {dashboard?.users.length ?? 0}
-            </span>
-          </div>
+    <div className="admin-section-stack">
+      <section className="admin-filters-bar">
+        <div className="admin-controls">
+          <label className="admin-control-field admin-control-field-wide">
+            <span>Search</span>
+            <input
+              value={usersQuery}
+              onChange={(event) => setUsersQuery(event.target.value)}
+              placeholder="Name, email, country, or user ID"
+            />
+          </label>
+          <label className="admin-control-field">
+            <span>Provider</span>
+            <select
+              value={usersProviderFilter}
+              onChange={(event) => setUsersProviderFilter(event.target.value)}
+            >
+              <option value="all">All providers</option>
+              {providerOptions.map((provider) => (
+                <option key={provider} value={provider}>
+                  {getProviderLabel(provider)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="admin-control-field">
+            <span>Date range</span>
+            <select
+              value={usersDateRange}
+              onChange={(event) => setUsersDateRange(event.target.value as DateRangeFilter)}
+            >
+              <option value="all">All time</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+            </select>
+          </label>
+          <label className="admin-control-field">
+            <span>Sort by</span>
+            <select
+              value={usersSort}
+              onChange={(event) => setUsersSort(event.target.value as UserSortKey)}
+            >
+              <option value="createdAt_desc">Newest registrations</option>
+              <option value="createdAt_asc">Oldest registrations</option>
+              <option value="lastLoginAt_desc">Latest login</option>
+              <option value="name_asc">Name A-Z</option>
+              <option value="email_asc">Email A-Z</option>
+            </select>
+          </label>
+          <button type="button" className="admin-link-button" onClick={exportUsersCsv} disabled={!filteredUsers.length}>
+            Export CSV
+          </button>
+          <span className="admin-filter-summary">
+            Showing {filteredUsers.length} of {dashboard?.users.length ?? 0}
+          </span>
         </div>
+      </section>
+
+      <section className="admin-master-detail">
+        <article className="admin-panel-card">
+          <div className="admin-panel-head">
+            <div>
+              <p className="admin-panel-kicker">Users</p>
+              <h3>Registrations list</h3>
+            </div>
+          </div>
         {filteredUsers.length ? (
           <div className="admin-table-wrap">
             <table className="admin-table">
@@ -1270,18 +1274,18 @@ function AdminPage() {
             <p>Adjust the current search or provider filter to inspect different registrations.</p>
           </div>
         )}
-      </article>
+        </article>
 
-      <aside className="admin-detail-card">
-        <div className="admin-detail-head">
-          <p className="admin-panel-kicker">Selected user</p>
-          <h3>{selectedUser?.name || "No user selected"}</h3>
-          <span className="admin-detail-subtitle">
-            {selectedUser?.email || "Choose a row to inspect user account details."}
-          </span>
-        </div>
-        {selectedUser ? (
-          <>
+        <aside className="admin-detail-card">
+          <div className="admin-detail-head">
+            <p className="admin-panel-kicker">Selected user</p>
+            <h3>{selectedUser?.name || "No user selected"}</h3>
+            <span className="admin-detail-subtitle">
+              {selectedUser?.email || "Choose a row to inspect user account details."}
+            </span>
+          </div>
+          {selectedUser ? (
+            <>
             <div className="admin-detail-summary-grid">
               <article className="admin-detail-summary-card">
                 <span className="admin-status-label">Linked orders</span>
@@ -1393,15 +1397,16 @@ function AdminPage() {
                 <div className="admin-related-note">No order records are currently linked to this user.</div>
               )}
             </div>
-          </>
-        ) : (
-          <div className="admin-empty-card admin-empty-detail">
-            <strong>No detail available</strong>
-            <p>Select a user row to load their registration details.</p>
-          </div>
-        )}
-      </aside>
-    </section>
+            </>
+          ) : (
+            <div className="admin-empty-card admin-empty-detail">
+              <strong>No detail available</strong>
+              <p>Select a user row to load their registration details.</p>
+            </div>
+          )}
+        </aside>
+      </section>
+    </div>
   );
 
   const renderSales = () => (
@@ -1417,68 +1422,71 @@ function AdminPage() {
         </article>
       </section>
 
+      <section className="admin-filters-bar">
+        <div className="admin-controls">
+          <label className="admin-control-field admin-control-field-wide">
+            <span>Search</span>
+            <input
+              value={salesQuery}
+              onChange={(event) => setSalesQuery(event.target.value)}
+              placeholder="Order, customer, email, plan, or order ID"
+            />
+          </label>
+          <label className="admin-control-field">
+            <span>Status</span>
+            <select
+              value={salesStatusFilter}
+              onChange={(event) => setSalesStatusFilter(event.target.value)}
+            >
+              <option value="all">All statuses</option>
+              {salesStatusOptions.map((statusOption) => (
+                <option key={statusOption} value={statusOption}>
+                  {statusOption}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="admin-control-field">
+            <span>Date range</span>
+            <select
+              value={salesDateRange}
+              onChange={(event) => setSalesDateRange(event.target.value as DateRangeFilter)}
+            >
+              <option value="all">All time</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+            </select>
+          </label>
+          <label className="admin-control-field">
+            <span>Sort by</span>
+            <select
+              value={salesSort}
+              onChange={(event) => setSalesSort(event.target.value as OrderSortKey)}
+            >
+              <option value="createdAt_desc">Newest orders</option>
+              <option value="createdAt_asc">Oldest orders</option>
+              <option value="price_desc">Highest value</option>
+              <option value="price_asc">Lowest value</option>
+              <option value="status_asc">Status A-Z</option>
+              <option value="customer_asc">Customer A-Z</option>
+            </select>
+          </label>
+          <button type="button" className="admin-link-button" onClick={exportOrdersCsv} disabled={!filteredOrders.length}>
+            Export CSV
+          </button>
+          <span className="admin-filter-summary">
+            Showing {filteredOrders.length} of {dashboard?.orders.length ?? 0}
+          </span>
+        </div>
+      </section>
+
       <section className="admin-master-detail">
         <article className="admin-panel-card">
-          <div className="admin-panel-head admin-panel-head-tight">
+          <div className="admin-panel-head">
             <div>
               <p className="admin-panel-kicker">Sales</p>
               <h3>Order records</h3>
-            </div>
-            <div className="admin-controls">
-              <label className="admin-control-field admin-control-field-wide">
-                <span>Search</span>
-                <input
-                  value={salesQuery}
-                  onChange={(event) => setSalesQuery(event.target.value)}
-                  placeholder="Order, customer, email, plan, or order ID"
-                />
-              </label>
-            <label className="admin-control-field">
-              <span>Status</span>
-              <select
-                value={salesStatusFilter}
-                onChange={(event) => setSalesStatusFilter(event.target.value)}
-                >
-                  <option value="all">All statuses</option>
-                  {salesStatusOptions.map((statusOption) => (
-                    <option key={statusOption} value={statusOption}>
-                      {statusOption}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="admin-control-field">
-                <span>Date range</span>
-                <select
-                  value={salesDateRange}
-                  onChange={(event) => setSalesDateRange(event.target.value as DateRangeFilter)}
-                >
-                  <option value="all">All time</option>
-                  <option value="7d">Last 7 days</option>
-                  <option value="30d">Last 30 days</option>
-                  <option value="90d">Last 90 days</option>
-                </select>
-              </label>
-              <label className="admin-control-field">
-                <span>Sort by</span>
-                <select
-                  value={salesSort}
-                  onChange={(event) => setSalesSort(event.target.value as OrderSortKey)}
-                >
-                  <option value="createdAt_desc">Newest orders</option>
-                  <option value="createdAt_asc">Oldest orders</option>
-                  <option value="price_desc">Highest value</option>
-                  <option value="price_asc">Lowest value</option>
-                  <option value="status_asc">Status A-Z</option>
-                  <option value="customer_asc">Customer A-Z</option>
-                </select>
-              </label>
-              <button type="button" className="admin-link-button" onClick={exportOrdersCsv} disabled={!filteredOrders.length}>
-                Export CSV
-              </button>
-              <span className="admin-filter-summary">
-                Showing {filteredOrders.length} of {dashboard?.orders.length ?? 0}
-              </span>
             </div>
           </div>
           {filteredOrders.length ? (
@@ -1739,41 +1747,44 @@ function AdminPage() {
         </article>
       </section>
 
+      <section className="admin-filters-bar">
+        <div className="admin-controls">
+          <label className="admin-control-field admin-control-field-wide">
+            <span>Search code</span>
+            <input
+              value={agentQuery}
+              onChange={(event) => setAgentQuery(event.target.value)}
+              placeholder="Referral code"
+            />
+          </label>
+          <label className="admin-control-field">
+            <span>Sort by</span>
+            <select
+              value={agentSort}
+              onChange={(event) => setAgentSort(event.target.value as AgentSortKey)}
+            >
+              <option value="monthPaidRevenue_desc">Monthly paid revenue</option>
+              <option value="paidRevenue_desc">All-time paid revenue</option>
+              <option value="totalOrders_desc">Total orders</option>
+              <option value="latestSaleAt_desc">Latest sale</option>
+              <option value="code_asc">Code A-Z</option>
+            </select>
+          </label>
+          <button type="button" className="admin-link-button" onClick={exportReferralsCsv} disabled={!filteredReferrals.length}>
+            Export CSV
+          </button>
+          <span className="admin-filter-summary">
+            Showing {filteredReferrals.length} of {referralSummaries.length}
+          </span>
+        </div>
+      </section>
+
       <section className="admin-master-detail">
         <article className="admin-panel-card">
-          <div className="admin-panel-head admin-panel-head-tight">
+          <div className="admin-panel-head">
             <div>
               <p className="admin-panel-kicker">Agents & referrals</p>
               <h3>Referral code performance</h3>
-            </div>
-            <div className="admin-controls">
-              <label className="admin-control-field admin-control-field-wide">
-                <span>Search code</span>
-                <input
-                  value={agentQuery}
-                  onChange={(event) => setAgentQuery(event.target.value)}
-                  placeholder="Referral code"
-                />
-              </label>
-              <label className="admin-control-field">
-                <span>Sort by</span>
-                <select
-                  value={agentSort}
-                  onChange={(event) => setAgentSort(event.target.value as AgentSortKey)}
-                >
-                  <option value="monthPaidRevenue_desc">Monthly paid revenue</option>
-                  <option value="paidRevenue_desc">All-time paid revenue</option>
-                  <option value="totalOrders_desc">Total orders</option>
-                  <option value="latestSaleAt_desc">Latest sale</option>
-                  <option value="code_asc">Code A-Z</option>
-                </select>
-              </label>
-              <button type="button" className="admin-link-button" onClick={exportReferralsCsv} disabled={!filteredReferrals.length}>
-                Export CSV
-              </button>
-              <span className="admin-filter-summary">
-                Showing {filteredReferrals.length} of {referralSummaries.length}
-              </span>
             </div>
           </div>
           {filteredReferrals.length ? (

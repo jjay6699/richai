@@ -2527,6 +2527,10 @@
   margin-bottom: 0.85rem;
 }
 
+.admin-filters-bar {
+  padding: 0.15rem 0 0.05rem;
+}
+
 .admin-panel-head-tight {
   display: grid;
   grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
