@@ -3516,7 +3516,7 @@
 }
 
 .ingredients-hero-scene {
-  display: flex;
+  display: none;
   align-items: flex-end;
   justify-content: flex-end;
   padding: 0 2.6rem 2.6rem 0;
