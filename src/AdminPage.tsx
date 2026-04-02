@@ -88,8 +88,15 @@ const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; de
   { id: "analytics", label: "Analytics", shortLabel: "AN", description: "Trend and performance insights" }
 ];
 
-const encodeBasicAuth = (username: string, password: string) =>
-  `Basic ${window.btoa(`${username}:${password}`)}`;
+const encodeBasicAuth = (username: string, password: string) => {
+  const raw = `${username}:${password}`;
+  const bytes = new TextEncoder().encode(raw);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return `Basic ${window.btoa(binary)}`;
+};
 
 const copyToClipboard = async (value: string) => {
   if (!navigator?.clipboard?.writeText) return false;
