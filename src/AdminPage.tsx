@@ -29,6 +29,15 @@ interface AdminOrder {
   createdAt: number;
 }
 
+interface AdminReferralAgent {
+  id: string;
+  code: string;
+  name: string | null;
+  email: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
 interface AdminOverview {
   stats: {
     totalUsers: number;
@@ -41,6 +50,7 @@ interface AdminOverview {
   };
   users: AdminUser[];
   orders: AdminOrder[];
+  referralAgents: AdminReferralAgent[];
 }
 
 interface AdminReferralSummary {
@@ -365,6 +375,10 @@ function AdminPage() {
   const [selectedAgentCode, setSelectedAgentCode] = useState<string | null>(null);
   const [agentQuery, setAgentQuery] = useState("");
   const [agentSort, setAgentSort] = useState<AgentSortKey>("monthPaidRevenue_desc");
+  const [newAgentCode, setNewAgentCode] = useState("");
+  const [newAgentName, setNewAgentName] = useState("");
+  const [newAgentEmail, setNewAgentEmail] = useState("");
+  const [isSavingAgent, setIsSavingAgent] = useState(false);
   const [referralCodeInput, setReferralCodeInput] = useState("");
   const [isSavingReferralCode, setIsSavingReferralCode] = useState(false);
   const [globalLookupQuery, setGlobalLookupQuery] = useState("");
@@ -456,7 +470,7 @@ function AdminPage() {
       });
   }, [dashboard, salesDateRange, salesQuery, salesSort, salesStatusFilter]);
   const referralSummaries = useMemo(() => {
-    if (!dashboard?.orders.length) return [];
+    if (!dashboard) return [];
 
     const monthStart = getCurrentMonthStart();
     const referralAgentMap = new Map(
@@ -464,35 +478,50 @@ function AdminPage() {
         .filter((user) => user.referralCode?.trim())
         .map((user) => [user.referralCode!.trim().toUpperCase(), user] as const)
     );
+    const managedAgentMap = new Map(
+      (dashboard?.referralAgents || [])
+        .filter((agent) => agent.code?.trim())
+        .map((agent) => [agent.code.trim().toUpperCase(), agent] as const)
+    );
     const referralMap = new Map<
       string,
       AdminReferralSummary & { customerKeys: Set<string> }
     >();
+
+    const seedCode = (code: string) => {
+      if (referralMap.has(code)) return;
+      const userAgent = referralAgentMap.get(code);
+      const managedAgent = managedAgentMap.get(code);
+      referralMap.set(code, {
+        code,
+        agentUserId: userAgent?.id || null,
+        agentName: managedAgent?.name || userAgent?.name || null,
+        agentEmail: managedAgent?.email || userAgent?.email || null,
+        totalOrders: 0,
+        totalRevenue: 0,
+        paidOrders: 0,
+        paidRevenue: 0,
+        monthOrders: 0,
+        monthRevenue: 0,
+        monthPaidOrders: 0,
+        monthPaidRevenue: 0,
+        uniqueCustomers: 0,
+        latestSaleAt: null,
+        customerKeys: new Set<string>()
+      });
+    };
+
+    for (const code of referralAgentMap.keys()) seedCode(code);
+    for (const code of managedAgentMap.keys()) seedCode(code);
 
     dashboard.orders.forEach((order) => {
       const rawCode = order.couponCode?.trim();
       if (!rawCode) return;
 
       const code = rawCode.toUpperCase();
-      const existing =
-        referralMap.get(code) ||
-        {
-          code,
-          agentUserId: referralAgentMap.get(code)?.id || null,
-          agentName: referralAgentMap.get(code)?.name || null,
-          agentEmail: referralAgentMap.get(code)?.email || null,
-          totalOrders: 0,
-          totalRevenue: 0,
-          paidOrders: 0,
-          paidRevenue: 0,
-          monthOrders: 0,
-          monthRevenue: 0,
-          monthPaidOrders: 0,
-          monthPaidRevenue: 0,
-          uniqueCustomers: 0,
-          latestSaleAt: null,
-          customerKeys: new Set<string>()
-        };
+      seedCode(code);
+      const existing = referralMap.get(code);
+      if (!existing) return;
 
       existing.totalOrders += 1;
       existing.totalRevenue += order.price;
@@ -520,7 +549,6 @@ function AdminPage() {
         order.userId || order.userEmail?.toLowerCase() || order.customerName?.toLowerCase() || order.orderNumber;
       existing.customerKeys.add(customerKey);
       existing.uniqueCustomers = existing.customerKeys.size;
-      referralMap.set(code, existing);
     });
 
     return Array.from(referralMap.values()).map(({ customerKeys: _customerKeys, ...summary }) => summary);
@@ -557,9 +585,17 @@ function AdminPage() {
       .sort((left, right) => right.createdAt - left.createdAt);
   }, [dashboard, selectedAgent]);
   const referralOverviewStats = useMemo(() => {
+    const knownCodes = new Set<string>();
+    (dashboard?.users || []).forEach((user) => {
+      if (user.referralCode?.trim()) knownCodes.add(user.referralCode.trim().toUpperCase());
+    });
+    (dashboard?.referralAgents || []).forEach((agent) => {
+      if (agent.code?.trim()) knownCodes.add(agent.code.trim().toUpperCase());
+    });
+
     if (!referralSummaries.length) {
       return {
-        activeCodes: 0,
+        activeCodes: knownCodes.size,
         monthPaidRevenue: 0,
         monthPaidOrders: 0,
         totalPaidRevenue: 0
@@ -567,12 +603,12 @@ function AdminPage() {
     }
 
     return {
-      activeCodes: referralSummaries.length,
+      activeCodes: knownCodes.size,
       monthPaidRevenue: referralSummaries.reduce((sum, summary) => sum + summary.monthPaidRevenue, 0),
       monthPaidOrders: referralSummaries.reduce((sum, summary) => sum + summary.monthPaidOrders, 0),
       totalPaidRevenue: referralSummaries.reduce((sum, summary) => sum + summary.paidRevenue, 0)
     };
-  }, [referralSummaries]);
+  }, [dashboard, referralSummaries]);
   const overviewStats = useMemo(() => {
     if (!dashboard) {
       return {
@@ -964,6 +1000,64 @@ function AdminPage() {
     }
   };
 
+  const handleCreateReferralAgent = async () => {
+    const code = newAgentCode.trim().toUpperCase();
+    if (!code) {
+      setError("Referral code is required.");
+      return;
+    }
+
+    setIsSavingAgent(true);
+    setError("");
+    setFlashMessage("");
+
+    try {
+      const authHeader = { Authorization: encodeBasicAuth(username.trim(), password) };
+      const response = await fetch(`${apiBase}/admin/referral-agents`, {
+        method: "POST",
+        headers: { ...authHeader, "content-type": "application/json" },
+        body: JSON.stringify({
+          code,
+          name: newAgentName.trim() || null,
+          email: newAgentEmail.trim() || null
+        })
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | { agent?: AdminReferralAgent; error?: string }
+        | null;
+
+      if (!response.ok || !payload?.agent) {
+        if (payload?.error === "invalid_referral_code") {
+          throw new Error("Referral code must be 4-24 characters using only letters and numbers.");
+        }
+        if (payload?.error === "invalid_email") {
+          throw new Error("Please enter a valid agent email address.");
+        }
+        if (payload?.error === "referral_code_in_use") {
+          throw new Error("That referral code is already assigned to another user or agent.");
+        }
+        throw new Error("Unable to create referral code.");
+      }
+
+      setDashboard((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          referralAgents: [payload.agent, ...(current.referralAgents || [])]
+        };
+      });
+      setNewAgentCode("");
+      setNewAgentName("");
+      setNewAgentEmail("");
+      setFlashMessage("Referral code created.");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to create referral code.");
+    } finally {
+      setIsSavingAgent(false);
+    }
+  };
+
   const openLookupResult = (result: { type: "user" | "order"; id: string }) => {
     if (result.type === "user") {
       setSelectedUserId(result.id);
@@ -1175,6 +1269,50 @@ function AdminPage() {
           <span className="admin-filter-summary">
             Showing {filteredUsers.length} of {dashboard?.users.length ?? 0}
           </span>
+        </div>
+      </section>
+
+      <section className="admin-panel-card">
+        <div className="admin-panel-head">
+          <div>
+            <p className="admin-panel-kicker">Agents</p>
+            <h3>Create referral code</h3>
+          </div>
+        </div>
+        <div className="admin-controls">
+          <label className="admin-control-field">
+            <span>Code</span>
+            <input
+              value={newAgentCode}
+              onChange={(event) => setNewAgentCode(event.target.value)}
+              placeholder="ORFD26"
+            />
+          </label>
+          <label className="admin-control-field">
+            <span>Agent name</span>
+            <input
+              value={newAgentName}
+              onChange={(event) => setNewAgentName(event.target.value)}
+              placeholder="Agent name (optional)"
+            />
+          </label>
+          <label className="admin-control-field">
+            <span>Agent email</span>
+            <input
+              value={newAgentEmail}
+              onChange={(event) => setNewAgentEmail(event.target.value)}
+              placeholder="name@example.com (optional)"
+            />
+          </label>
+          <button
+            type="button"
+            className="admin-submit-button"
+            onClick={handleCreateReferralAgent}
+            disabled={isSavingAgent || !newAgentCode.trim()}
+            style={{ alignSelf: "end" }}
+          >
+            {isSavingAgent ? "Creating..." : "Create code"}
+          </button>
         </div>
       </section>
 
