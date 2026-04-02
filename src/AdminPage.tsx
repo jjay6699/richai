@@ -1040,11 +1040,15 @@ function AdminPage() {
         throw new Error("Unable to create referral code.");
       }
 
+      const createdAgent = payload.agent;
+      if (!createdAgent) {
+        throw new Error("Unable to create referral code.");
+      }
       setDashboard((current) => {
         if (!current) return current;
         return {
           ...current,
-          referralAgents: [payload.agent, ...(current.referralAgents || [])]
+          referralAgents: [createdAgent, ...(current.referralAgents || [])]
         };
       });
       setNewAgentCode("");
