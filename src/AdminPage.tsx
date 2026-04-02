@@ -70,12 +70,24 @@ interface AdminReferralSummary {
   latestSaleAt: number | null;
 }
 
+interface ReferralCodeRow {
+  id: string;
+  code: string;
+  name: string | null;
+  email: string | null;
+  source: "managed" | "user";
+  createdAt: number | null;
+  totalOrders: number;
+  paidRevenue: number;
+}
+
 type AdminSection = "overview" | "users" | "sales" | "agents" | "codes" | "analytics";
 type FetchStatus = "idle" | "authenticated" | "refresh_failed" | "expired";
 type DateRangeFilter = "all" | "7d" | "30d" | "90d";
 type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "name_asc" | "email_asc";
 type OrderSortKey = "createdAt_desc" | "createdAt_asc" | "price_desc" | "price_asc" | "status_asc" | "customer_asc";
 type AgentSortKey = "monthPaidRevenue_desc" | "paidRevenue_desc" | "totalOrders_desc" | "latestSaleAt_desc" | "code_asc";
+type CodeSortKey = "createdAt_desc" | "createdAt_asc" | "code_asc";
 
 const apiBase = (import.meta.env.VITE_APP_API_URL || "/api").replace(/\/$/, "");
 const directApiBase = (import.meta.env.VITE_ADMIN_DIRECT_API_URL || "https://healthai.up.railway.app/api").replace(/\/$/, "");
@@ -470,6 +482,8 @@ function AdminPage() {
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentEmail, setNewAgentEmail] = useState("");
   const [isSavingAgent, setIsSavingAgent] = useState(false);
+  const [codeQuery, setCodeQuery] = useState("");
+  const [codeSort, setCodeSort] = useState<CodeSortKey>("createdAt_desc");
   const [referralCodeInput, setReferralCodeInput] = useState("");
   const [isSavingReferralCode, setIsSavingReferralCode] = useState(false);
   const [globalLookupQuery, setGlobalLookupQuery] = useState("");
@@ -675,6 +689,68 @@ function AdminPage() {
       .filter((order) => order.couponCode?.trim().toUpperCase() === selectedAgent.code)
       .sort((left, right) => right.createdAt - left.createdAt);
   }, [dashboard, selectedAgent]);
+  const referralCodeRows = useMemo(() => {
+    if (!dashboard) return [];
+
+    const summaryMap = new Map(
+      referralSummaries.map((summary) => [summary.code.toUpperCase(), summary])
+    );
+    const rowMap = new Map<string, ReferralCodeRow>();
+
+    (dashboard.referralAgents || []).forEach((agent) => {
+      const code = agent.code.trim().toUpperCase();
+      if (!code) return;
+      const summary = summaryMap.get(code);
+      rowMap.set(code, {
+        id: agent.id,
+        code,
+        name: agent.name || null,
+        email: agent.email || null,
+        source: "managed",
+        createdAt: agent.createdAt || null,
+        totalOrders: summary?.totalOrders ?? 0,
+        paidRevenue: summary?.paidRevenue ?? 0
+      });
+    });
+
+    (dashboard.users || []).forEach((user) => {
+      const rawCode = user.referralCode?.trim();
+      if (!rawCode) return;
+      const code = rawCode.toUpperCase();
+      if (rowMap.has(code)) return;
+      const summary = summaryMap.get(code);
+      rowMap.set(code, {
+        id: user.id,
+        code,
+        name: user.name || null,
+        email: user.email || null,
+        source: "user",
+        createdAt: user.createdAt || null,
+        totalOrders: summary?.totalOrders ?? 0,
+        paidRevenue: summary?.paidRevenue ?? 0
+      });
+    });
+
+    const query = codeQuery.trim().toLowerCase();
+    return Array.from(rowMap.values())
+      .filter((row) =>
+        !query ||
+        row.code.toLowerCase().includes(query) ||
+        row.name?.toLowerCase().includes(query) ||
+        row.email?.toLowerCase().includes(query)
+      )
+      .sort((left, right) => {
+        switch (codeSort) {
+          case "createdAt_asc":
+            return (left.createdAt || 0) - (right.createdAt || 0);
+          case "code_asc":
+            return left.code.localeCompare(right.code);
+          case "createdAt_desc":
+          default:
+            return (right.createdAt || 0) - (left.createdAt || 0);
+        }
+      });
+  }, [codeQuery, codeSort, dashboard, referralSummaries]);
   const referralOverviewStats = useMemo(() => {
     const knownCodes = new Set<string>();
     (dashboard?.users || []).forEach((user) => {
@@ -2409,7 +2485,6 @@ function AdminPage() {
   );
 
   const renderCodes = () => {
-    const managedCodes = dashboard?.referralAgents || [];
     return (
       <div className="admin-section-stack">
         <section className="admin-panel-card">
@@ -2463,7 +2538,33 @@ function AdminPage() {
               <h3>Issued referral codes</h3>
             </div>
           </div>
-          {managedCodes.length ? (
+          <section className="admin-filters-bar">
+            <div className="admin-controls">
+              <label className="admin-control-field admin-control-field-wide">
+                <span>Search code</span>
+                <input
+                  value={codeQuery}
+                  onChange={(event) => setCodeQuery(event.target.value)}
+                  placeholder="Code, agent, or email"
+                />
+              </label>
+              <label className="admin-control-field">
+                <span>Sort by</span>
+                <select
+                  value={codeSort}
+                  onChange={(event) => setCodeSort(event.target.value as CodeSortKey)}
+                >
+                  <option value="createdAt_desc">Newest</option>
+                  <option value="createdAt_asc">Oldest</option>
+                  <option value="code_asc">Code A-Z</option>
+                </select>
+              </label>
+              <span className="admin-filter-summary">
+                Showing {referralCodeRows.length}
+              </span>
+            </div>
+          </section>
+          {referralCodeRows.length ? (
             <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
@@ -2471,26 +2572,36 @@ function AdminPage() {
                     <th>Code</th>
                     <th>Agent</th>
                     <th>Email</th>
+                    <th>Source</th>
+                    <th>Total orders</th>
+                    <th>Paid revenue</th>
                     <th>Created</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {managedCodes.map((agent) => (
-                    <tr key={agent.id}>
-                      <td>{agent.code}</td>
-                      <td>{agent.name || "--"}</td>
-                      <td>{agent.email || "--"}</td>
-                      <td>{formatDate(agent.createdAt)}</td>
+                  {referralCodeRows.map((row) => (
+                    <tr key={`${row.source}-${row.id}-${row.code}`}>
+                      <td>{row.code}</td>
+                      <td>{row.name || "--"}</td>
+                      <td>{row.email || "--"}</td>
+                      <td>{row.source === "managed" ? "Managed" : "User"}</td>
+                      <td>{row.totalOrders}</td>
+                      <td>{formatCurrency(row.paidRevenue)}</td>
+                      <td>{formatDate(row.createdAt)}</td>
                       <td>
-                        <button
-                          type="button"
-                          className="admin-link-button"
-                          onClick={() => handleDeleteReferralAgent(agent.id, agent.code)}
-                          disabled={isSavingAgent}
-                        >
-                          Delete
-                        </button>
+                        {row.source === "managed" ? (
+                          <button
+                            type="button"
+                            className="admin-link-button"
+                            onClick={() => handleDeleteReferralAgent(row.id, row.code)}
+                            disabled={isSavingAgent}
+                          >
+                            Delete
+                          </button>
+                        ) : (
+                          "--"
+                        )}
                       </td>
                     </tr>
                   ))}
