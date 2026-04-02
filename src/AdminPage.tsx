@@ -70,7 +70,7 @@ interface AdminReferralSummary {
   latestSaleAt: number | null;
 }
 
-type AdminSection = "overview" | "users" | "sales" | "agents" | "analytics";
+type AdminSection = "overview" | "users" | "sales" | "agents" | "codes" | "analytics";
 type FetchStatus = "idle" | "authenticated" | "refresh_failed" | "expired";
 type DateRangeFilter = "all" | "7d" | "30d" | "90d";
 type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "name_asc" | "email_asc";
@@ -84,6 +84,7 @@ const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; de
   { id: "users", label: "Users", shortLabel: "US", description: "App registrations and account activity" },
   { id: "sales", label: "Sales", shortLabel: "SA", description: "Orders, revenue, and payment status" },
   { id: "agents", label: "Agents", shortLabel: "AG", description: "Referral codes, monthly sales, and attribution" },
+  { id: "codes", label: "Referral codes", shortLabel: "RC", description: "Create, view, and manage agent codes" },
   { id: "analytics", label: "Analytics", shortLabel: "AN", description: "Trend and performance insights" }
 ];
 
@@ -201,6 +202,17 @@ const getSectionMeta = (
           .filter((order) => order.couponCode?.trim())
           .sort((left, right) => right.createdAt - left.createdAt)[0]?.createdAt ?? null
       )
+    };
+  }
+
+  if (activeSection === "codes") {
+    return {
+      kicker: "Referral codes",
+      title: "Agent code management",
+      description: "Create, review, and retire referral codes issued to agents.",
+      badge: dashboard ? `${dashboard.referralAgents.length} managed codes` : "Awaiting data",
+      timestampLabel: "Last synced",
+      timestampValue: formatDate(lastSyncedAt)
     };
   }
 
@@ -1062,6 +1074,45 @@ function AdminPage() {
     }
   };
 
+  const handleDeleteReferralAgent = async (agentId: string, code: string) => {
+    if (!agentId) return;
+    const confirmed = window.confirm(`Delete referral code ${code}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setIsSavingAgent(true);
+    setError("");
+    setFlashMessage("");
+
+    try {
+      const authHeader = { Authorization: encodeBasicAuth(username.trim(), password) };
+      const response = await fetch(`${apiBase}/admin/referral-agents/${agentId}`, {
+        method: "DELETE",
+        headers: authHeader
+      });
+
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        if (payload?.error === "agent_not_found") {
+          throw new Error("That referral code no longer exists.");
+        }
+        throw new Error("Unable to delete referral code.");
+      }
+
+      setDashboard((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          referralAgents: (current.referralAgents || []).filter((agent) => agent.id !== agentId)
+        };
+      });
+      setFlashMessage("Referral code deleted.");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to delete referral code.");
+    } finally {
+      setIsSavingAgent(false);
+    }
+  };
+
   const openLookupResult = (result: { type: "user" | "order"; id: string }) => {
     if (result.type === "user") {
       setSelectedUserId(result.id);
@@ -1273,50 +1324,6 @@ function AdminPage() {
           <span className="admin-filter-summary">
             Showing {filteredUsers.length} of {dashboard?.users.length ?? 0}
           </span>
-        </div>
-      </section>
-
-      <section className="admin-panel-card">
-        <div className="admin-panel-head">
-          <div>
-            <p className="admin-panel-kicker">Agents</p>
-            <h3>Create referral code</h3>
-          </div>
-        </div>
-        <div className="admin-controls">
-          <label className="admin-control-field">
-            <span>Code</span>
-            <input
-              value={newAgentCode}
-              onChange={(event) => setNewAgentCode(event.target.value)}
-              placeholder="ORFD26"
-            />
-          </label>
-          <label className="admin-control-field">
-            <span>Agent name</span>
-            <input
-              value={newAgentName}
-              onChange={(event) => setNewAgentName(event.target.value)}
-              placeholder="Agent name (optional)"
-            />
-          </label>
-          <label className="admin-control-field">
-            <span>Agent email</span>
-            <input
-              value={newAgentEmail}
-              onChange={(event) => setNewAgentEmail(event.target.value)}
-              placeholder="name@example.com (optional)"
-            />
-          </label>
-          <button
-            type="button"
-            className="admin-submit-button"
-            onClick={handleCreateReferralAgent}
-            disabled={isSavingAgent || !newAgentCode.trim()}
-            style={{ alignSelf: "end" }}
-          >
-            {isSavingAgent ? "Creating..." : "Create code"}
-          </button>
         </div>
       </section>
 
@@ -2331,6 +2338,106 @@ function AdminPage() {
     </div>
   );
 
+  const renderCodes = () => {
+    const managedCodes = dashboard?.referralAgents || [];
+    return (
+      <div className="admin-section-stack">
+        <section className="admin-panel-card">
+          <div className="admin-panel-head">
+            <div>
+              <p className="admin-panel-kicker">Referral codes</p>
+              <h3>Create new code</h3>
+            </div>
+          </div>
+          <div className="admin-controls">
+            <label className="admin-control-field">
+              <span>Code</span>
+              <input
+                value={newAgentCode}
+                onChange={(event) => setNewAgentCode(event.target.value)}
+                placeholder="ORFD26"
+              />
+            </label>
+            <label className="admin-control-field">
+              <span>Agent name</span>
+              <input
+                value={newAgentName}
+                onChange={(event) => setNewAgentName(event.target.value)}
+                placeholder="Agent name (optional)"
+              />
+            </label>
+            <label className="admin-control-field">
+              <span>Agent email</span>
+              <input
+                value={newAgentEmail}
+                onChange={(event) => setNewAgentEmail(event.target.value)}
+                placeholder="name@example.com (optional)"
+              />
+            </label>
+            <button
+              type="button"
+              className="admin-submit-button"
+              onClick={handleCreateReferralAgent}
+              disabled={isSavingAgent || !newAgentCode.trim()}
+              style={{ alignSelf: "end" }}
+            >
+              {isSavingAgent ? "Creating..." : "Create code"}
+            </button>
+          </div>
+        </section>
+
+        <section className="admin-panel-card">
+          <div className="admin-panel-head">
+            <div>
+              <p className="admin-panel-kicker">Managed codes</p>
+              <h3>Issued referral codes</h3>
+            </div>
+          </div>
+          {managedCodes.length ? (
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Agent</th>
+                    <th>Email</th>
+                    <th>Created</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {managedCodes.map((agent) => (
+                    <tr key={agent.id}>
+                      <td>{agent.code}</td>
+                      <td>{agent.name || "--"}</td>
+                      <td>{agent.email || "--"}</td>
+                      <td>{formatDate(agent.createdAt)}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="admin-link-button"
+                          onClick={() => handleDeleteReferralAgent(agent.id, agent.code)}
+                          disabled={isSavingAgent}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="admin-empty-card">
+              <strong>No referral codes yet</strong>
+              <p>Create your first agent code to start tracking referred sales.</p>
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  };
+
   if (!isSignedIn) {
     return (
       <main
@@ -2428,13 +2535,6 @@ function AdminPage() {
         </div>
 
         <div className="admin-sidebar-bottom">
-          {isSignedIn ? (
-            <div className="admin-session-card">
-              <span className="admin-status-label">Signed in as</span>
-              <strong>{username.trim() || "admin"}</strong>
-              <small>Credentials stay in memory only and clear when you close or sign out.</small>
-            </div>
-          ) : null}
           <div className="admin-side-actions">
             <button
               className="admin-side-button"
@@ -2595,6 +2695,7 @@ function AdminPage() {
             {activeSection === "users" && renderUsers()}
             {activeSection === "sales" && renderSales()}
             {activeSection === "agents" && renderAgents()}
+            {activeSection === "codes" && renderCodes()}
             {activeSection === "analytics" && renderAnalytics()}
           </div>
         )}
