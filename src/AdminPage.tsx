@@ -1453,7 +1453,7 @@ function AdminPage() {
           </div>
           {filteredOrders.length ? (
             <div className="admin-table-wrap">
-              <table className="admin-table">
+              <table className="admin-table admin-table-wide">
                 <thead>
                   <tr>
                     <th>Order</th>

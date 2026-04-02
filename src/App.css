@@ -2883,12 +2883,22 @@
 
 .admin-table-wrap {
   overflow-x: auto;
+  scrollbar-gutter: stable both-edges;
 }
 
 .admin-table {
   width: 100%;
   min-width: 760px;
   border-collapse: collapse;
+}
+
+.admin-table-wide {
+  min-width: 920px;
+}
+
+.admin-table-wide th,
+.admin-table-wide td {
+  white-space: nowrap;
 }
 
 .admin-table th,
