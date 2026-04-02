@@ -361,6 +361,78 @@ const requestReferralCodeUpdate = async (
   throw new TypeError("Unable to reach the admin service.");
 };
 
+const requestReferralAgentCreate = async (
+  nextUsername: string,
+  nextPassword: string,
+  payload: { code: string; name?: string | null; email?: string | null }
+) => {
+  const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword), "Content-Type": "application/json" };
+  let lastErrorResponse: Response | null = null;
+
+  const attempts: Array<() => Promise<Response>> = [
+    () =>
+      fetch(`${apiBase}/admin/referral-agents`, {
+        method: "POST",
+        headers: authHeader,
+        body: JSON.stringify(payload)
+      }),
+    () =>
+      fetch(`${directApiBase}/admin/referral-agents`, {
+        method: "POST",
+        headers: authHeader,
+        body: JSON.stringify(payload)
+      })
+  ];
+
+  for (const run of attempts) {
+    try {
+      const response = await run();
+      if (response.ok) return response;
+      lastErrorResponse = response;
+    } catch {
+      // continue to next strategy
+    }
+  }
+
+  if (lastErrorResponse) return lastErrorResponse;
+  throw new TypeError("Unable to reach the admin service.");
+};
+
+const requestReferralAgentDelete = async (
+  nextUsername: string,
+  nextPassword: string,
+  agentId: string
+) => {
+  const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword) };
+  let lastErrorResponse: Response | null = null;
+
+  const attempts: Array<() => Promise<Response>> = [
+    () =>
+      fetch(`${apiBase}/admin/referral-agents/${agentId}`, {
+        method: "DELETE",
+        headers: authHeader
+      }),
+    () =>
+      fetch(`${directApiBase}/admin/referral-agents/${agentId}`, {
+        method: "DELETE",
+        headers: authHeader
+      })
+  ];
+
+  for (const run of attempts) {
+    try {
+      const response = await run();
+      if (response.ok) return response;
+      lastErrorResponse = response;
+    } catch {
+      // continue to next strategy
+    }
+  }
+
+  if (lastErrorResponse) return lastErrorResponse;
+  throw new TypeError("Unable to reach the admin service.");
+};
+
 function AdminPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -1024,15 +1096,10 @@ function AdminPage() {
     setFlashMessage("");
 
     try {
-      const authHeader = { Authorization: encodeBasicAuth(username.trim(), password) };
-      const response = await fetch(`${apiBase}/admin/referral-agents`, {
-        method: "POST",
-        headers: { ...authHeader, "content-type": "application/json" },
-        body: JSON.stringify({
-          code,
-          name: newAgentName.trim() || null,
-          email: newAgentEmail.trim() || null
-        })
+      const response = await requestReferralAgentCreate(username.trim(), password, {
+        code,
+        name: newAgentName.trim() || null,
+        email: newAgentEmail.trim() || null
       });
 
       const payload = (await response.json().catch(() => null)) as
@@ -1084,11 +1151,7 @@ function AdminPage() {
     setFlashMessage("");
 
     try {
-      const authHeader = { Authorization: encodeBasicAuth(username.trim(), password) };
-      const response = await fetch(`${apiBase}/admin/referral-agents/${agentId}`, {
-        method: "DELETE",
-        headers: authHeader
-      });
+      const response = await requestReferralAgentDelete(username.trim(), password, agentId);
 
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
