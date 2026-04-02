@@ -34,6 +34,8 @@ interface AdminOverview {
     totalUsers: number;
     totalSales: number;
     totalRevenue: number;
+    potentialSales: number;
+    potentialRevenue: number;
     latestUserAt: number | null;
     latestSaleAt: number | null;
   };
@@ -982,14 +984,14 @@ function AdminPage() {
           <small>Latest registration: {formatDate(dashboard?.stats.latestUserAt ?? null)}</small>
         </article>
         <article className="admin-kpi-card">
-          <span className="admin-kpi-label">Total sales</span>
+          <span className="admin-kpi-label">Paid orders</span>
           <strong>{dashboard?.stats.totalSales ?? 0}</strong>
-          <small>Latest sale: {formatDate(dashboard?.stats.latestSaleAt ?? null)}</small>
+          <small>Latest paid order: {formatDate(dashboard?.stats.latestSaleAt ?? null)}</small>
         </article>
         <article className="admin-kpi-card">
-          <span className="admin-kpi-label">Revenue tracked</span>
+          <span className="admin-kpi-label">Paid revenue</span>
           <strong>{formatCurrency(dashboard?.stats.totalRevenue ?? 0)}</strong>
-          <small>Current app-side order records</small>
+          <small>Potential revenue: {formatCurrency(dashboard?.stats.potentialRevenue ?? 0)}</small>
         </article>
       </section>
 
@@ -1369,12 +1371,16 @@ function AdminPage() {
     <div className="admin-section-stack">
       <section className="admin-summary-strip">
         <article className="admin-summary-card">
-          <span className="admin-status-label">Total orders</span>
+          <span className="admin-status-label">Paid orders</span>
           <strong>{dashboard?.stats.totalSales ?? 0}</strong>
         </article>
         <article className="admin-summary-card">
-          <span className="admin-status-label">Revenue</span>
+          <span className="admin-status-label">Paid revenue</span>
           <strong>{formatCurrency(dashboard?.stats.totalRevenue ?? 0)}</strong>
+        </article>
+        <article className="admin-summary-card">
+          <span className="admin-status-label">Potential revenue</span>
+          <strong>{formatCurrency(dashboard?.stats.potentialRevenue ?? 0)}</strong>
         </article>
       </section>
 
