@@ -1308,7 +1308,7 @@ function AdminPage() {
           </div>
 
           <div className="admin-coupon-form">
-            <div className="admin-controls">
+            <div className="admin-controls admin-controls-roomy">
               <label className="admin-control-field">
                 <span>Code</span>
                 <input value={newCouponCode} onChange={(e) => setNewCouponCode(e.target.value)} placeholder="WELCOME10" />
@@ -1328,6 +1328,9 @@ function AdminPage() {
                 <span>Value</span>
                 <input value={newCouponDiscountValue} onChange={(e) => setNewCouponDiscountValue(e.target.value)} inputMode="decimal" placeholder={newCouponDiscountType === "percent" ? "10" : "20"} />
               </label>
+            </div>
+
+            <div className="admin-controls admin-controls-roomy">
               <label className="admin-control-field admin-control-field-wide">
                 <span>Description (optional)</span>
                 <input value={newCouponDescription} onChange={(e) => setNewCouponDescription(e.target.value)} placeholder="Internal note for admins" />
@@ -1336,7 +1339,7 @@ function AdminPage() {
 
             <details className="admin-advanced">
               <summary>Usage + validity (optional)</summary>
-              <div className="admin-controls">
+              <div className="admin-controls admin-controls-roomy">
                 <label className="admin-control-field">
                   <span>Min subtotal</span>
                   <input value={newCouponMinSubtotal} onChange={(e) => setNewCouponMinSubtotal(e.target.value)} inputMode="decimal" placeholder="0" />
@@ -1364,7 +1367,7 @@ function AdminPage() {
               </div>
             </details>
 
-            <div className="admin-form-actions">
+            <div className="admin-form-actions admin-form-actions-roomy">
               <label className="admin-control-field">
                 <span>Status</span>
                 <select value={newCouponIsActive ? "1" : "0"} onChange={(e) => setNewCouponIsActive(e.target.value === "1")}>
