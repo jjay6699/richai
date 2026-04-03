@@ -38,6 +38,26 @@ interface AdminReferralAgent {
   updatedAt: number;
 }
 
+interface AdminDiscountCoupon {
+  id: string;
+  code: string;
+  title: string | null;
+  description: string | null;
+  discountType: "percent" | "fixed_amount";
+  discountValue: number;
+  currency: string;
+  minimumSubtotal: number | null;
+  maxDiscountAmount: number | null;
+  startsAt: number | null;
+  endsAt: number | null;
+  usageLimit: number | null;
+  usageCount: number;
+  perUserLimit: number | null;
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
 interface AdminOverview {
   stats: {
     totalUsers: number;
@@ -51,6 +71,7 @@ interface AdminOverview {
   users: AdminUser[];
   orders: AdminOrder[];
   referralAgents: AdminReferralAgent[];
+  discountCoupons?: AdminDiscountCoupon[];
 }
 
 interface AdminReferralSummary {
@@ -81,7 +102,7 @@ interface ReferralCodeRow {
   paidRevenue: number;
 }
 
-type AdminSection = "overview" | "users" | "sales" | "agents" | "codes" | "analytics";
+type AdminSection = "overview" | "users" | "sales" | "agents" | "codes" | "coupons" | "analytics";
 type FetchStatus = "idle" | "authenticated" | "refresh_failed" | "expired";
 type DateRangeFilter = "all" | "7d" | "30d" | "90d";
 type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "name_asc" | "email_asc";
@@ -97,6 +118,7 @@ const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; de
   { id: "sales", label: "Sales", shortLabel: "SA", description: "Orders, revenue, and payment status" },
   { id: "agents", label: "Agents", shortLabel: "AG", description: "Referral codes, monthly sales, and attribution" },
   { id: "codes", label: "Referral codes", shortLabel: "RC", description: "Create, view, and manage agent codes" },
+  { id: "coupons", label: "Discount coupons", shortLabel: "DC", description: "Create and manage customer discount coupons" },
   { id: "analytics", label: "Analytics", shortLabel: "AN", description: "Trend and performance insights" }
 ];
 
@@ -230,6 +252,17 @@ const getSectionMeta = (
       title: "Agent code management",
       description: "Create, review, and retire referral codes issued to agents.",
       badge: dashboard ? `${dashboard.referralAgents.length} managed codes` : "Awaiting data",
+      timestampLabel: "Last synced",
+      timestampValue: formatDate(lastSyncedAt)
+    };
+  }
+
+  if (activeSection === "coupons") {
+    return {
+      kicker: "Discount coupons",
+      title: "Customer discount management",
+      description: "Create percentage or fixed-amount coupons and control validity windows & usage limits.",
+      badge: dashboard ? "Discount coupon rules" : "Awaiting data",
       timestampLabel: "Last synced",
       timestampValue: formatDate(lastSyncedAt)
     };
@@ -452,6 +485,103 @@ const requestReferralAgentDelete = async (
   throw new TypeError("Unable to reach the admin service.");
 };
 
+const requestDiscountCouponsList = async (nextUsername: string, nextPassword: string) => {
+  const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword) };
+  let lastErrorResponse: Response | null = null;
+
+  const attempts: Array<() => Promise<Response>> = [
+    () => fetch(`${apiBase}/admin/discount-coupons`, { headers: authHeader }),
+    () => fetch(`${directApiBase}/admin/discount-coupons`, { headers: authHeader })
+  ];
+
+  for (const run of attempts) {
+    try {
+      const response = await run();
+      if (response.ok) return response;
+      lastErrorResponse = response;
+    } catch {
+      // continue
+    }
+  }
+
+  if (lastErrorResponse) return lastErrorResponse;
+  throw new TypeError("Unable to reach the admin service.");
+};
+
+const requestDiscountCouponCreate = async (
+  nextUsername: string,
+  nextPassword: string,
+  payload: {
+    code: string;
+    title?: string | null;
+    description?: string | null;
+    discountType: "percent" | "fixed_amount";
+    discountValue: number;
+    currency?: string;
+    minimumSubtotal?: number | null;
+    maxDiscountAmount?: number | null;
+    startsAt?: string | number | null;
+    endsAt?: string | number | null;
+    usageLimit?: number | null;
+    perUserLimit?: number | null;
+    isActive?: boolean;
+  }
+) => {
+  const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword), "Content-Type": "application/json" };
+  let lastErrorResponse: Response | null = null;
+
+  const attempts: Array<() => Promise<Response>> = [
+    () =>
+      fetch(`${apiBase}/admin/discount-coupons`, {
+        method: "POST",
+        headers: authHeader,
+        body: JSON.stringify(payload)
+      }),
+    () =>
+      fetch(`${directApiBase}/admin/discount-coupons`, {
+        method: "POST",
+        headers: authHeader,
+        body: JSON.stringify(payload)
+      })
+  ];
+
+  for (const run of attempts) {
+    try {
+      const response = await run();
+      if (response.ok) return response;
+      lastErrorResponse = response;
+    } catch {
+      // continue
+    }
+  }
+
+  if (lastErrorResponse) return lastErrorResponse;
+  throw new TypeError("Unable to reach the admin service.");
+};
+
+const requestDiscountCouponDelete = async (nextUsername: string, nextPassword: string, couponId: string) => {
+  const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword) };
+  let lastErrorResponse: Response | null = null;
+
+  const attempts: Array<() => Promise<Response>> = [
+    () => fetch(`${apiBase}/admin/discount-coupons/${couponId}`, { method: "DELETE", headers: authHeader }),
+    () => fetch(`${directApiBase}/admin/discount-coupons/${couponId}`, { method: "DELETE", headers: authHeader })
+  ];
+
+  for (const run of attempts) {
+    try {
+      const response = await run();
+      if (response.ok) return response;
+      lastErrorResponse = response;
+    } catch {
+      // continue
+    }
+  }
+
+  if (lastErrorResponse) return lastErrorResponse;
+  throw new TypeError("Unable to reach the admin service.");
+};
+
 function AdminPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -488,6 +618,22 @@ function AdminPage() {
   const [isSavingReferralCode, setIsSavingReferralCode] = useState(false);
   const [globalLookupQuery, setGlobalLookupQuery] = useState("");
   const [copiedField, setCopiedField] = useState("");
+
+  const [discountCoupons, setDiscountCoupons] = useState<AdminDiscountCoupon[]>([]);
+  const [couponQuery, setCouponQuery] = useState("");
+  const [newCouponCode, setNewCouponCode] = useState("");
+  const [newCouponTitle, setNewCouponTitle] = useState("");
+  const [newCouponDescription, setNewCouponDescription] = useState("");
+  const [newCouponDiscountType, setNewCouponDiscountType] = useState<"percent" | "fixed_amount">("percent");
+  const [newCouponDiscountValue, setNewCouponDiscountValue] = useState("10");
+  const [newCouponMinSubtotal, setNewCouponMinSubtotal] = useState("");
+  const [newCouponMaxDiscount, setNewCouponMaxDiscount] = useState("");
+  const [newCouponStartsAt, setNewCouponStartsAt] = useState("");
+  const [newCouponEndsAt, setNewCouponEndsAt] = useState("");
+  const [newCouponUsageLimit, setNewCouponUsageLimit] = useState("");
+  const [newCouponPerUserLimit, setNewCouponPerUserLimit] = useState("");
+  const [newCouponIsActive, setNewCouponIsActive] = useState(true);
+  const [isSavingCoupon, setIsSavingCoupon] = useState(false);
 
   const recentUsers = useMemo(() => dashboard?.users.slice(0, 5) || [], [dashboard]);
   const recentOrders = useMemo(() => dashboard?.orders.slice(0, 5) || [], [dashboard]);
@@ -952,6 +1098,7 @@ function AdminPage() {
       }
 
       setDashboard(payload as AdminOverview);
+      // discount coupons are loaded on-demand (coupons tab) to keep overview payload small.
       setLastSyncedAt(Date.now());
       setSelectedUserId((payload as AdminOverview).users[0]?.id || null);
       setSelectedOrderId((payload as AdminOverview).orders[0]?.id || null);
@@ -991,6 +1138,323 @@ function AdminPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchDiscountCoupons = async () => {
+    if (!username.trim() || !password) return;
+    setIsLoading(true);
+    setError("");
+    setFlashMessage("");
+
+    try {
+      const response = await requestDiscountCouponsList(username.trim(), password);
+      const payload = (await response.json().catch(() => null)) as { coupons?: AdminDiscountCoupon[]; error?: string } | null;
+      if (!response.ok || !payload?.coupons) {
+        throw new Error("Unable to load discount coupons.");
+      }
+      setDiscountCoupons(payload.coupons);
+      setFlashMessage("Discount coupons synced.");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to load discount coupons.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredDiscountCoupons = useMemo(() => {
+    const query = couponQuery.trim().toLowerCase();
+    if (!query) return discountCoupons;
+    return discountCoupons.filter((coupon) => {
+      return (
+        coupon.code.toLowerCase().includes(query) ||
+        coupon.title?.toLowerCase().includes(query) ||
+        coupon.description?.toLowerCase().includes(query)
+      );
+    });
+  }, [couponQuery, discountCoupons]);
+
+  const handleCreateDiscountCoupon = async () => {
+    const code = newCouponCode.trim().toUpperCase();
+    if (!code) {
+      setError("Coupon code is required.");
+      return;
+    }
+
+    const discountValue = Number(newCouponDiscountValue);
+    if (!Number.isFinite(discountValue) || discountValue <= 0) {
+      setError("Discount value must be a positive number.");
+      return;
+    }
+
+    setIsSavingCoupon(true);
+    setError("");
+    setFlashMessage("");
+
+    try {
+      const minSubtotal = newCouponMinSubtotal.trim() ? Number(newCouponMinSubtotal) : null;
+      if (newCouponMinSubtotal.trim() && (!Number.isFinite(minSubtotal!) || minSubtotal! < 0)) {
+        throw new Error("Minimum subtotal must be a valid number.");
+      }
+
+      const maxDiscount = newCouponMaxDiscount.trim() ? Number(newCouponMaxDiscount) : null;
+      if (newCouponMaxDiscount.trim() && (!Number.isFinite(maxDiscount!) || maxDiscount! < 0)) {
+        throw new Error("Max discount must be a valid number.");
+      }
+
+      const usageLimit = newCouponUsageLimit.trim() ? Number(newCouponUsageLimit) : null;
+      if (newCouponUsageLimit.trim() && (!Number.isFinite(usageLimit!) || usageLimit! < 1)) {
+        throw new Error("Usage limit must be a whole number >= 1.");
+      }
+
+      const perUserLimit = newCouponPerUserLimit.trim() ? Number(newCouponPerUserLimit) : null;
+      if (newCouponPerUserLimit.trim() && (!Number.isFinite(perUserLimit!) || perUserLimit! < 1)) {
+        throw new Error("Per-user limit must be a whole number >= 1.");
+      }
+
+      const response = await requestDiscountCouponCreate(username.trim(), password, {
+        code,
+        title: newCouponTitle.trim() || null,
+        description: newCouponDescription.trim() || null,
+        discountType: newCouponDiscountType,
+        discountValue,
+        currency: "MYR",
+        minimumSubtotal: minSubtotal,
+        maxDiscountAmount: maxDiscount,
+        startsAt: newCouponStartsAt.trim() || null,
+        endsAt: newCouponEndsAt.trim() || null,
+        usageLimit,
+        perUserLimit,
+        isActive: newCouponIsActive
+      });
+
+      const payload = (await response.json().catch(() => null)) as { coupon?: AdminDiscountCoupon; error?: string } | null;
+      if (!response.ok || !payload?.coupon) {
+        if (payload?.error === "invalid_coupon_code") {
+          throw new Error("Coupon code must be 3-32 characters (letters, numbers, '-' or '_').");
+        }
+        if (payload?.error === "coupon_code_in_use") {
+          throw new Error("That coupon code is already in use.");
+        }
+        throw new Error("Unable to create discount coupon.");
+      }
+
+      setDiscountCoupons((current) => [payload.coupon!, ...current]);
+      setNewCouponCode("");
+      setNewCouponTitle("");
+      setNewCouponDescription("");
+      setNewCouponDiscountType("percent");
+      setNewCouponDiscountValue("10");
+      setNewCouponMinSubtotal("");
+      setNewCouponMaxDiscount("");
+      setNewCouponStartsAt("");
+      setNewCouponEndsAt("");
+      setNewCouponUsageLimit("");
+      setNewCouponPerUserLimit("");
+      setNewCouponIsActive(true);
+      setFlashMessage("Discount coupon created.");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to create discount coupon.");
+    } finally {
+      setIsSavingCoupon(false);
+    }
+  };
+
+  const handleDeleteDiscountCoupon = async (couponId: string, code: string) => {
+    const confirmed = window.confirm(`Delete discount coupon ${code}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setIsSavingCoupon(true);
+    setError("");
+    setFlashMessage("");
+
+    try {
+      const response = await requestDiscountCouponDelete(username.trim(), password, couponId);
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        if (payload?.error === "coupon_not_found") {
+          throw new Error("That coupon no longer exists.");
+        }
+        throw new Error("Unable to delete discount coupon.");
+      }
+      setDiscountCoupons((current) => current.filter((coupon) => coupon.id !== couponId));
+      setFlashMessage("Discount coupon deleted.");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to delete discount coupon.");
+    } finally {
+      setIsSavingCoupon(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    if (activeSection !== "coupons" && activeSection !== "codes") return;
+    if (discountCoupons.length) return;
+    void fetchDiscountCoupons();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection, isSignedIn]);
+
+  const renderCoupons = () => {
+    return (
+      <div className="admin-section-stack">
+        <section className="admin-panel-card">
+          <div className="admin-panel-head">
+            <div>
+              <p className="admin-panel-kicker">Discount coupons</p>
+              <h3>Create new coupon</h3>
+            </div>
+            <button type="button" className="admin-link-button" onClick={fetchDiscountCoupons} disabled={isLoading}>
+              Refresh
+            </button>
+          </div>
+
+          <div className="admin-controls">
+            <label className="admin-control-field">
+              <span>Code</span>
+              <input value={newCouponCode} onChange={(e) => setNewCouponCode(e.target.value)} placeholder="WELCOME10" />
+            </label>
+            <label className="admin-control-field">
+              <span>Title</span>
+              <input value={newCouponTitle} onChange={(e) => setNewCouponTitle(e.target.value)} placeholder="Welcome discount" />
+            </label>
+            <label className="admin-control-field admin-control-field-wide">
+              <span>Description</span>
+              <input value={newCouponDescription} onChange={(e) => setNewCouponDescription(e.target.value)} placeholder="Optional description shown in admin" />
+            </label>
+            <label className="admin-control-field">
+              <span>Discount type</span>
+              <select value={newCouponDiscountType} onChange={(e) => setNewCouponDiscountType(e.target.value as any)}>
+                <option value="percent">Percent (%)</option>
+                <option value="fixed_amount">Fixed amount (MYR)</option>
+              </select>
+            </label>
+            <label className="admin-control-field">
+              <span>Value</span>
+              <input value={newCouponDiscountValue} onChange={(e) => setNewCouponDiscountValue(e.target.value)} inputMode="decimal" />
+            </label>
+            <label className="admin-control-field">
+              <span>Min subtotal (optional)</span>
+              <input value={newCouponMinSubtotal} onChange={(e) => setNewCouponMinSubtotal(e.target.value)} inputMode="decimal" placeholder="0" />
+            </label>
+            <label className="admin-control-field">
+              <span>Max discount (optional)</span>
+              <input value={newCouponMaxDiscount} onChange={(e) => setNewCouponMaxDiscount(e.target.value)} inputMode="decimal" placeholder="0" />
+            </label>
+            <label className="admin-control-field">
+              <span>Starts at (optional)</span>
+              <input value={newCouponStartsAt} onChange={(e) => setNewCouponStartsAt(e.target.value)} placeholder="2026-04-03" />
+            </label>
+            <label className="admin-control-field">
+              <span>Ends at (optional)</span>
+              <input value={newCouponEndsAt} onChange={(e) => setNewCouponEndsAt(e.target.value)} placeholder="2026-05-03" />
+            </label>
+            <label className="admin-control-field">
+              <span>Usage limit (optional)</span>
+              <input value={newCouponUsageLimit} onChange={(e) => setNewCouponUsageLimit(e.target.value)} inputMode="numeric" placeholder="100" />
+            </label>
+            <label className="admin-control-field">
+              <span>Per-user limit (optional)</span>
+              <input value={newCouponPerUserLimit} onChange={(e) => setNewCouponPerUserLimit(e.target.value)} inputMode="numeric" placeholder="1" />
+            </label>
+            <label className="admin-control-field">
+              <span>Active</span>
+              <select value={newCouponIsActive ? "1" : "0"} onChange={(e) => setNewCouponIsActive(e.target.value === "1")}>
+                <option value="1">Active</option>
+                <option value="0">Inactive</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              className="admin-submit-button"
+              onClick={handleCreateDiscountCoupon}
+              disabled={isSavingCoupon || !newCouponCode.trim()}
+              style={{ alignSelf: "end" }}
+            >
+              {isSavingCoupon ? "Creating..." : "Create coupon"}
+            </button>
+          </div>
+        </section>
+
+        <section className="admin-panel-card">
+          <div className="admin-panel-head">
+            <div>
+              <p className="admin-panel-kicker">Issued coupons</p>
+              <h3>Customer discount coupons</h3>
+            </div>
+          </div>
+          <section className="admin-filters-bar">
+            <div className="admin-controls">
+              <label className="admin-control-field admin-control-field-wide">
+                <span>Search</span>
+                <input value={couponQuery} onChange={(e) => setCouponQuery(e.target.value)} placeholder="Code or title" />
+              </label>
+              <span className="admin-filter-summary">Showing {filteredDiscountCoupons.length}</span>
+            </div>
+          </section>
+
+          {filteredDiscountCoupons.length ? (
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Type</th>
+                    <th>Value</th>
+                    <th>Min subtotal</th>
+                    <th>Max discount</th>
+                    <th>Usage</th>
+                    <th>Active</th>
+                    <th>Valid</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDiscountCoupons.map((coupon) => (
+                    <tr key={coupon.id}>
+                      <td>{coupon.code}</td>
+                      <td>{coupon.discountType === "percent" ? "Percent" : "Fixed"}</td>
+                      <td>
+                        {coupon.discountType === "percent" ? `${coupon.discountValue}%` : formatCurrency(coupon.discountValue)}
+                      </td>
+                      <td>{coupon.minimumSubtotal == null ? "--" : formatCurrency(coupon.minimumSubtotal)}</td>
+                      <td>{coupon.maxDiscountAmount == null ? "--" : formatCurrency(coupon.maxDiscountAmount)}</td>
+                      <td>
+                        {coupon.usageCount}
+                        {coupon.usageLimit != null ? ` / ${coupon.usageLimit}` : ""}
+                      </td>
+                      <td>
+                        <span className={`admin-tag admin-tag-${coupon.isActive ? "success" : "neutral"}`}>
+                          {coupon.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td>
+                        <small>
+                          {coupon.startsAt ? formatDate(coupon.startsAt) : "--"} → {coupon.endsAt ? formatDate(coupon.endsAt) : "--"}
+                        </small>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="admin-link-button"
+                          onClick={() => handleDeleteDiscountCoupon(coupon.id, coupon.code)}
+                          disabled={isSavingCoupon}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="admin-empty-card">
+              <strong>No discount coupons yet</strong>
+              <p>Create your first customer coupon like WELCOME10.</p>
+            </div>
+          )}
+        </section>
+      </div>
+    );
   };
 
   useEffect(() => {
@@ -2615,6 +3079,8 @@ function AdminPage() {
             </div>
           )}
         </section>
+
+        {renderCoupons()}
       </div>
     );
   };
@@ -2876,6 +3342,7 @@ function AdminPage() {
             {activeSection === "users" && renderUsers()}
             {activeSection === "sales" && renderSales()}
             {activeSection === "agents" && renderAgents()}
+            {activeSection === "coupons" && renderCoupons()}
             {activeSection === "codes" && renderCodes()}
             {activeSection === "analytics" && renderAnalytics()}
           </div>
