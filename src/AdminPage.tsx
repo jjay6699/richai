@@ -582,6 +582,45 @@ const requestDiscountCouponDelete = async (nextUsername: string, nextPassword: s
   throw new TypeError("Unable to reach the admin service.");
 };
 
+const requestOrderStatusUpdate = async (
+  nextUsername: string,
+  nextPassword: string,
+  orderId: string,
+  status: "failed" | "cancelled"
+) => {
+  const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword), "Content-Type": "application/json" };
+  const payload = { status };
+  let lastErrorResponse: Response | null = null;
+
+  const attempts: Array<() => Promise<Response>> = [
+    () =>
+      fetch(`${apiBase}/admin/orders/${orderId}/status`, {
+        method: "PUT",
+        headers: authHeader,
+        body: JSON.stringify(payload)
+      }),
+    () =>
+      fetch(`${directApiBase}/admin/orders/${orderId}/status`, {
+        method: "PUT",
+        headers: authHeader,
+        body: JSON.stringify(payload)
+      })
+  ];
+
+  for (const run of attempts) {
+    try {
+      const response = await run();
+      if (response.ok) return response;
+      lastErrorResponse = response;
+    } catch {
+      // continue
+    }
+  }
+
+  if (lastErrorResponse) return lastErrorResponse;
+  throw new TypeError("Unable to reach the admin service.");
+};
+
 function AdminPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -634,6 +673,7 @@ function AdminPage() {
   const [newCouponPerUserLimit, setNewCouponPerUserLimit] = useState("");
   const [newCouponIsActive, setNewCouponIsActive] = useState(true);
   const [isSavingCoupon, setIsSavingCoupon] = useState(false);
+  const [isSavingOrderStatus, setIsSavingOrderStatus] = useState(false);
 
   const recentUsers = useMemo(() => dashboard?.users.slice(0, 5) || [], [dashboard]);
   const recentOrders = useMemo(() => dashboard?.orders.slice(0, 5) || [], [dashboard]);
@@ -1282,6 +1322,44 @@ function AdminPage() {
       setError(nextError instanceof Error ? nextError.message : "Unable to delete discount coupon.");
     } finally {
       setIsSavingCoupon(false);
+    }
+  };
+
+  const handleMarkOrderFailed = async (orderId: string, orderNumber: string) => {
+    const confirmed = window.confirm(`Mark order ${orderNumber} as failed? This will close out the payment attempt.`);
+    if (!confirmed) return;
+
+    setIsSavingOrderStatus(true);
+    setError("");
+    setFlashMessage("");
+
+    try {
+      const response = await requestOrderStatusUpdate(username.trim(), password, orderId, "failed");
+      const payload = (await response.json().catch(() => null)) as { order?: AdminOrder; error?: string } | null;
+
+      if (!response.ok || !payload?.order) {
+        if (payload?.error === "order_already_paid") {
+          throw new Error("That order is already paid and cannot be updated.");
+        }
+        if (payload?.error === "order_not_found") {
+          throw new Error("That order no longer exists.");
+        }
+        throw new Error("Unable to update order status.");
+      }
+
+      const updatedOrder = payload.order;
+      setDashboard((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          orders: current.orders.map((order) => (order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order))
+        };
+      });
+      setFlashMessage(`Order ${updatedOrder.orderNumber} marked as failed.`);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to update order status.");
+    } finally {
+      setIsSavingOrderStatus(false);
     }
   };
 
@@ -2350,6 +2428,19 @@ function AdminPage() {
                 </dd>
               </div>
             </dl>
+            {selectedOrder.status.trim().toLowerCase() === "processing" ? (
+              <div className="admin-detail-actions">
+                <button
+                  type="button"
+                  className="admin-link-button admin-link-danger"
+                  onClick={() => handleMarkOrderFailed(selectedOrder.id, selectedOrder.orderNumber)}
+                  disabled={isSavingOrderStatus}
+                >
+                  {isSavingOrderStatus ? "Updating..." : "Mark failed"}
+                </button>
+                <small>Unpaid orders auto-expire after 12 hours.</small>
+              </div>
+            ) : null}
             <div className="admin-related-panel">
               <div className="admin-related-panel-head">
                 <p className="admin-panel-kicker">Customer history</p>
