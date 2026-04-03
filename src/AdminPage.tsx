@@ -112,6 +112,7 @@ type CodeSortKey = "createdAt_desc" | "createdAt_asc" | "code_asc";
 
 const apiBase = (import.meta.env.VITE_APP_API_URL || "/api").replace(/\/$/, "");
 const directApiBase = (import.meta.env.VITE_ADMIN_DIRECT_API_URL || "https://healthai.up.railway.app/api").replace(/\/$/, "");
+const ADMIN_SESSION_KEY = "richai_admin_session";
 const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; description: string }> = [
   { id: "overview", label: "Overview", shortLabel: "OV", description: "Key operational snapshot" },
   { id: "users", label: "Users", shortLabel: "US", description: "App registrations and account activity" },
@@ -1142,6 +1143,10 @@ function AdminPage() {
       setLastSyncedAt(Date.now());
       setSelectedUserId((payload as AdminOverview).users[0]?.id || null);
       setSelectedOrderId((payload as AdminOverview).orders[0]?.id || null);
+      sessionStorage.setItem(
+        ADMIN_SESSION_KEY,
+        JSON.stringify({ username: nextUsername, password: nextPassword })
+      );
       setStatus("authenticated");
       setFlashMessage(
         "Dashboard synced successfully."
@@ -1164,6 +1169,7 @@ function AdminPage() {
         setSelectedOrderId(null);
         setLastSyncedAt(null);
         setStatus("expired");
+        sessionStorage.removeItem(ADMIN_SESSION_KEY);
       } else if (!dashboard) {
         setSelectedUserId(null);
         setSelectedOrderId(null);
@@ -1355,6 +1361,7 @@ function AdminPage() {
           orders: current.orders.map((order) => (order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order))
         };
       });
+      setSelectedOrderId(updatedOrder.id);
       setFlashMessage(`Order ${updatedOrder.orderNumber} marked as failed.`);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to update order status.");
@@ -1584,6 +1591,22 @@ function AdminPage() {
     return () => window.clearTimeout(timeout);
   }, [flashMessage]);
 
+  useEffect(() => {
+    if (dashboard) return;
+    const stored = sessionStorage.getItem(ADMIN_SESSION_KEY);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored) as { username?: string; password?: string } | null;
+      if (!parsed?.username || !parsed?.password) return;
+      setUsername(parsed.username);
+      setPassword(parsed.password);
+      void fetchDashboard(parsed.username, parsed.password, { preserveSection: true });
+    } catch {
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -1607,6 +1630,7 @@ function AdminPage() {
     setError("");
     setStatus("idle");
     setFlashMessage("Signed out of the admin console.");
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
     setSelectedUserId(null);
     setSelectedOrderId(null);
     setLastSyncedAt(null);
