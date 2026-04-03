@@ -1307,70 +1307,80 @@ function AdminPage() {
             </button>
           </div>
 
-          <div className="admin-controls">
-            <label className="admin-control-field">
-              <span>Code</span>
-              <input value={newCouponCode} onChange={(e) => setNewCouponCode(e.target.value)} placeholder="WELCOME10" />
-            </label>
-            <label className="admin-control-field">
-              <span>Title</span>
-              <input value={newCouponTitle} onChange={(e) => setNewCouponTitle(e.target.value)} placeholder="Welcome discount" />
-            </label>
-            <label className="admin-control-field admin-control-field-wide">
-              <span>Description</span>
-              <input value={newCouponDescription} onChange={(e) => setNewCouponDescription(e.target.value)} placeholder="Optional description shown in admin" />
-            </label>
-            <label className="admin-control-field">
-              <span>Discount type</span>
-              <select value={newCouponDiscountType} onChange={(e) => setNewCouponDiscountType(e.target.value as any)}>
-                <option value="percent">Percent (%)</option>
-                <option value="fixed_amount">Fixed amount (MYR)</option>
-              </select>
-            </label>
-            <label className="admin-control-field">
-              <span>Value</span>
-              <input value={newCouponDiscountValue} onChange={(e) => setNewCouponDiscountValue(e.target.value)} inputMode="decimal" />
-            </label>
-            <label className="admin-control-field">
-              <span>Min subtotal (optional)</span>
-              <input value={newCouponMinSubtotal} onChange={(e) => setNewCouponMinSubtotal(e.target.value)} inputMode="decimal" placeholder="0" />
-            </label>
-            <label className="admin-control-field">
-              <span>Max discount (optional)</span>
-              <input value={newCouponMaxDiscount} onChange={(e) => setNewCouponMaxDiscount(e.target.value)} inputMode="decimal" placeholder="0" />
-            </label>
-            <label className="admin-control-field">
-              <span>Starts at (optional)</span>
-              <input value={newCouponStartsAt} onChange={(e) => setNewCouponStartsAt(e.target.value)} placeholder="2026-04-03" />
-            </label>
-            <label className="admin-control-field">
-              <span>Ends at (optional)</span>
-              <input value={newCouponEndsAt} onChange={(e) => setNewCouponEndsAt(e.target.value)} placeholder="2026-05-03" />
-            </label>
-            <label className="admin-control-field">
-              <span>Usage limit (optional)</span>
-              <input value={newCouponUsageLimit} onChange={(e) => setNewCouponUsageLimit(e.target.value)} inputMode="numeric" placeholder="100" />
-            </label>
-            <label className="admin-control-field">
-              <span>Per-user limit (optional)</span>
-              <input value={newCouponPerUserLimit} onChange={(e) => setNewCouponPerUserLimit(e.target.value)} inputMode="numeric" placeholder="1" />
-            </label>
-            <label className="admin-control-field">
-              <span>Active</span>
-              <select value={newCouponIsActive ? "1" : "0"} onChange={(e) => setNewCouponIsActive(e.target.value === "1")}>
-                <option value="1">Active</option>
-                <option value="0">Inactive</option>
-              </select>
-            </label>
-            <button
-              type="button"
-              className="admin-submit-button"
-              onClick={handleCreateDiscountCoupon}
-              disabled={isSavingCoupon || !newCouponCode.trim()}
-              style={{ alignSelf: "end" }}
-            >
-              {isSavingCoupon ? "Creating..." : "Create coupon"}
-            </button>
+          <div className="admin-coupon-form">
+            <div className="admin-controls">
+              <label className="admin-control-field">
+                <span>Code</span>
+                <input value={newCouponCode} onChange={(e) => setNewCouponCode(e.target.value)} placeholder="WELCOME10" />
+              </label>
+              <label className="admin-control-field">
+                <span>Title</span>
+                <input value={newCouponTitle} onChange={(e) => setNewCouponTitle(e.target.value)} placeholder="Welcome discount" />
+              </label>
+              <label className="admin-control-field">
+                <span>Discount type</span>
+                <select value={newCouponDiscountType} onChange={(e) => setNewCouponDiscountType(e.target.value as any)}>
+                  <option value="percent">Percent (%)</option>
+                  <option value="fixed_amount">Fixed amount (MYR)</option>
+                </select>
+              </label>
+              <label className="admin-control-field">
+                <span>Value</span>
+                <input value={newCouponDiscountValue} onChange={(e) => setNewCouponDiscountValue(e.target.value)} inputMode="decimal" placeholder={newCouponDiscountType === "percent" ? "10" : "20"} />
+              </label>
+              <label className="admin-control-field admin-control-field-wide">
+                <span>Description (optional)</span>
+                <input value={newCouponDescription} onChange={(e) => setNewCouponDescription(e.target.value)} placeholder="Internal note for admins" />
+              </label>
+            </div>
+
+            <details className="admin-advanced">
+              <summary>Usage + validity (optional)</summary>
+              <div className="admin-controls">
+                <label className="admin-control-field">
+                  <span>Min subtotal</span>
+                  <input value={newCouponMinSubtotal} onChange={(e) => setNewCouponMinSubtotal(e.target.value)} inputMode="decimal" placeholder="0" />
+                </label>
+                <label className="admin-control-field">
+                  <span>Max discount</span>
+                  <input value={newCouponMaxDiscount} onChange={(e) => setNewCouponMaxDiscount(e.target.value)} inputMode="decimal" placeholder="0" />
+                </label>
+                <label className="admin-control-field">
+                  <span>Starts at</span>
+                  <input type="date" value={newCouponStartsAt} onChange={(e) => setNewCouponStartsAt(e.target.value)} />
+                </label>
+                <label className="admin-control-field">
+                  <span>Ends at</span>
+                  <input type="date" value={newCouponEndsAt} onChange={(e) => setNewCouponEndsAt(e.target.value)} />
+                </label>
+                <label className="admin-control-field">
+                  <span>Usage limit</span>
+                  <input value={newCouponUsageLimit} onChange={(e) => setNewCouponUsageLimit(e.target.value)} inputMode="numeric" placeholder="100" />
+                </label>
+                <label className="admin-control-field">
+                  <span>Per-user limit</span>
+                  <input value={newCouponPerUserLimit} onChange={(e) => setNewCouponPerUserLimit(e.target.value)} inputMode="numeric" placeholder="1" />
+                </label>
+              </div>
+            </details>
+
+            <div className="admin-form-actions">
+              <label className="admin-control-field">
+                <span>Status</span>
+                <select value={newCouponIsActive ? "1" : "0"} onChange={(e) => setNewCouponIsActive(e.target.value === "1")}>
+                  <option value="1">Active</option>
+                  <option value="0">Inactive</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                className="admin-submit-button"
+                onClick={handleCreateDiscountCoupon}
+                disabled={isSavingCoupon || !newCouponCode.trim()}
+              >
+                {isSavingCoupon ? "Creating..." : "Create coupon"}
+              </button>
+            </div>
           </div>
         </section>
 
