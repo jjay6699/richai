@@ -3186,7 +3186,6 @@ function AdminPage() {
                 >
                   <span className="admin-nav-copy">
                     <strong>{item.label}</strong>
-                    <small>{item.description}</small>
                   </span>
                 </button>
               );
