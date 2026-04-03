@@ -58,6 +58,34 @@ interface AdminDiscountCoupon {
   updatedAt: number;
 }
 
+interface AdminUserDetails {
+  profile: Record<string, any>;
+  shippingAddress: {
+    id: string;
+    fullName: string;
+    phone: string;
+    addressLine1: string;
+    addressLine2?: string;
+    city: string;
+    state: string;
+    postcode: string;
+    isDefault: boolean;
+    updatedAt: number;
+  } | null;
+  shippingAddresses: Array<{
+    id: string;
+    fullName: string;
+    phone: string;
+    addressLine1: string;
+    addressLine2?: string;
+    city: string;
+    state: string;
+    postcode: string;
+    isDefault: boolean;
+    updatedAt: number;
+  }>;
+}
+
 interface AdminOverview {
   stats: {
     totalUsers: number;
@@ -196,6 +224,24 @@ const getStatusTone = (value: string) => {
   if (normalized === "paid" || normalized === "completed" || normalized === "succeeded") return "success";
   if (normalized === "failed" || normalized === "cancelled") return "danger";
   return "neutral";
+};
+
+const formatShortDate = (value: string) => {
+  if (!value) return "--";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+};
+
+const formatShippingAddress = (address: AdminUserDetails["shippingAddress"]) => {
+  if (!address) return "--";
+  const parts = [
+    address.addressLine1,
+    address.addressLine2,
+    `${address.postcode} ${address.city}`.trim(),
+    address.state
+  ].filter(Boolean);
+  return parts.join(", ");
 };
 
 const isPaidOrder = (status: string) => ["paid", "completed", "succeeded"].includes(status.trim().toLowerCase());
@@ -583,6 +629,29 @@ const requestDiscountCouponDelete = async (nextUsername: string, nextPassword: s
   throw new TypeError("Unable to reach the admin service.");
 };
 
+const requestAdminUserDetails = async (nextUsername: string, nextPassword: string, userId: string) => {
+  const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword) };
+  let lastErrorResponse: Response | null = null;
+
+  const attempts: Array<() => Promise<Response>> = [
+    () => fetch(`${apiBase}/admin/users/${userId}/details`, { headers: authHeader }),
+    () => fetch(`${directApiBase}/admin/users/${userId}/details`, { headers: authHeader })
+  ];
+
+  for (const run of attempts) {
+    try {
+      const response = await run();
+      if (response.ok) return response;
+      lastErrorResponse = response;
+    } catch {
+      // continue
+    }
+  }
+
+  if (lastErrorResponse) return lastErrorResponse;
+  throw new TypeError("Unable to reach the admin service.");
+};
+
 const requestOrderStatusUpdate = async (
   nextUsername: string,
   nextPassword: string,
@@ -675,6 +744,8 @@ function AdminPage() {
   const [newCouponIsActive, setNewCouponIsActive] = useState(true);
   const [isSavingCoupon, setIsSavingCoupon] = useState(false);
   const [isSavingOrderStatus, setIsSavingOrderStatus] = useState(false);
+  const [userDetails, setUserDetails] = useState<AdminUserDetails | null>(null);
+  const [isLoadingUserDetails, setIsLoadingUserDetails] = useState(false);
 
   const recentUsers = useMemo(() => dashboard?.users.slice(0, 5) || [], [dashboard]);
   const recentOrders = useMemo(() => dashboard?.orders.slice(0, 5) || [], [dashboard]);
@@ -1592,6 +1663,39 @@ function AdminPage() {
   }, [flashMessage]);
 
   useEffect(() => {
+    if (!isSignedIn || !selectedUser?.id) {
+      setUserDetails(null);
+      return;
+    }
+    let cancelled = false;
+    const loadDetails = async () => {
+      setIsLoadingUserDetails(true);
+      try {
+        const response = await requestAdminUserDetails(username.trim(), password, selectedUser.id);
+        const payload = (await response.json().catch(() => null)) as AdminUserDetails | { error?: string } | null;
+        if (!response.ok || !payload || ("error" in payload && payload.error)) {
+          throw new Error("Unable to load user details.");
+        }
+        if (!cancelled) {
+          setUserDetails(payload as AdminUserDetails);
+        }
+      } catch (nextError) {
+        if (!cancelled) {
+          setUserDetails(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingUserDetails(false);
+        }
+      }
+    };
+    void loadDetails();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSignedIn, selectedUser?.id, username, password]);
+
+  useEffect(() => {
     if (dashboard) return;
     const stored = sessionStorage.getItem(ADMIN_SESSION_KEY);
     if (!stored) return;
@@ -1633,6 +1737,7 @@ function AdminPage() {
     sessionStorage.removeItem(ADMIN_SESSION_KEY);
     setSelectedUserId(null);
     setSelectedOrderId(null);
+    setUserDetails(null);
     setLastSyncedAt(null);
     setActiveSection("overview");
     refreshCaptcha();
@@ -2139,12 +2244,24 @@ function AdminPage() {
                 <dd>{selectedUser.country || "--"}</dd>
               </div>
               <div>
+                <dt>Date of birth</dt>
+                <dd>{userDetails?.profile?.dob ? formatShortDate(userDetails.profile.dob) : isLoadingUserDetails ? "Loading..." : "--"}</dd>
+              </div>
+              <div>
+                <dt>Phone</dt>
+                <dd>{userDetails?.shippingAddress?.phone || (isLoadingUserDetails ? "Loading..." : "--")}</dd>
+              </div>
+              <div>
                 <dt>Registered</dt>
                 <dd>{formatDate(selectedUser.createdAt)}</dd>
               </div>
               <div>
                 <dt>Referral code</dt>
                 <dd>{selectedUser.referralCode || "--"}</dd>
+              </div>
+              <div className="admin-detail-block">
+                <dt>Delivery address</dt>
+                <dd>{isLoadingUserDetails ? "Loading..." : formatShippingAddress(userDetails?.shippingAddress || null)}</dd>
               </div>
               <div>
                 <dt>Last login</dt>
