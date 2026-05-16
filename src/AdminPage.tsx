@@ -36,6 +36,8 @@ interface AdminReferralAgent {
   email: string | null;
   createdAt: number;
   updatedAt: number;
+  redemptionCount?: number;
+  latestRedeemedAt?: number | null;
 }
 
 interface AdminDiscountCoupon {
@@ -135,7 +137,6 @@ type FetchStatus = "idle" | "authenticated" | "refresh_failed" | "expired";
 type DateRangeFilter = "all" | "7d" | "30d" | "90d";
 type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "name_asc" | "email_asc";
 type OrderSortKey = "createdAt_desc" | "createdAt_asc" | "price_desc" | "price_asc" | "status_asc" | "customer_asc";
-type AgentSortKey = "monthPaidRevenue_desc" | "paidRevenue_desc" | "totalOrders_desc" | "latestSaleAt_desc" | "code_asc";
 type CodeSortKey = "createdAt_desc" | "createdAt_asc" | "code_asc";
 
 const apiBase = (import.meta.env.VITE_APP_API_URL || "/api").replace(/\/$/, "");
@@ -145,8 +146,7 @@ const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; de
   { id: "overview", label: "Overview", shortLabel: "OV", description: "Key operational snapshot" },
   { id: "users", label: "Users", shortLabel: "US", description: "App registrations and account activity" },
   { id: "sales", label: "Sales", shortLabel: "SA", description: "Orders, revenue, and payment status" },
-  { id: "agents", label: "Agents", shortLabel: "AG", description: "Referral codes, monthly sales, and attribution" },
-  { id: "codes", label: "Referral codes", shortLabel: "RC", description: "Create, view, and manage agent codes" },
+  { id: "agents", label: "Agent codes", shortLabel: "AG", description: "Create Plus trial codes and track redemptions" },
   { id: "coupons", label: "Discount coupons", shortLabel: "DC", description: "Create and manage customer discount coupons" },
   { id: "analytics", label: "Analytics", shortLabel: "AN", description: "Trend and performance insights" }
 ];
@@ -280,15 +280,16 @@ const getSectionMeta = (
 
   if (activeSection === "agents") {
     return {
-      kicker: "Agents",
-      title: "Referrals and code performance",
-      description: "Track referral codes, attributed monthly sales, and commissionable revenue from app orders.",
-      badge: dashboard ? `${dashboard.orders.filter((order) => order.couponCode?.trim()).length} referred orders` : "Awaiting data",
-      timestampLabel: "Latest referral",
+      kicker: "Agent codes",
+      title: "Plus trial codes",
+      description: "Create a code for an agent. When a user redeems it, they get 1 month of Plus.",
+      badge: dashboard ? `${dashboard.referralAgents.length} codes` : "Awaiting data",
+      timestampLabel: "Latest redemption",
       timestampValue: formatDate(
-        dashboard?.orders
-          .filter((order) => order.couponCode?.trim())
-          .sort((left, right) => right.createdAt - left.createdAt)[0]?.createdAt ?? null
+        (dashboard?.referralAgents || []).reduce<number | null>((latest, item) => {
+          if (!item.latestRedeemedAt) return latest;
+          return latest && latest > item.latestRedeemedAt ? latest : item.latestRedeemedAt;
+        }, null)
       )
     };
   }
@@ -714,9 +715,7 @@ function AdminPage() {
   const [salesStatusFilter, setSalesStatusFilter] = useState("all");
   const [salesDateRange, setSalesDateRange] = useState<DateRangeFilter>("all");
   const [salesSort, setSalesSort] = useState<OrderSortKey>("createdAt_desc");
-  const [selectedAgentCode, setSelectedAgentCode] = useState<string | null>(null);
   const [agentQuery, setAgentQuery] = useState("");
-  const [agentSort, setAgentSort] = useState<AgentSortKey>("monthPaidRevenue_desc");
   const [newAgentCode, setNewAgentCode] = useState("");
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentEmail, setNewAgentEmail] = useState("");
@@ -916,37 +915,6 @@ function AdminPage() {
 
     return Array.from(referralMap.values()).map(({ customerKeys: _customerKeys, ...summary }) => summary);
   }, [dashboard]);
-  const filteredReferrals = useMemo(() => {
-    const query = agentQuery.trim().toLowerCase();
-
-    return [...referralSummaries]
-      .filter((summary) => !query || summary.code.toLowerCase().includes(query))
-      .sort((left, right) => {
-        switch (agentSort) {
-          case "paidRevenue_desc":
-            return right.paidRevenue - left.paidRevenue;
-          case "totalOrders_desc":
-            return right.totalOrders - left.totalOrders;
-          case "latestSaleAt_desc":
-            return (right.latestSaleAt || 0) - (left.latestSaleAt || 0);
-          case "code_asc":
-            return left.code.localeCompare(right.code);
-          case "monthPaidRevenue_desc":
-          default:
-            return right.monthPaidRevenue - left.monthPaidRevenue;
-        }
-      });
-  }, [agentQuery, agentSort, referralSummaries]);
-  const selectedAgent = useMemo(() => {
-    if (!filteredReferrals.length) return null;
-    return filteredReferrals.find((summary) => summary.code === selectedAgentCode) || filteredReferrals[0] || null;
-  }, [filteredReferrals, selectedAgentCode]);
-  const selectedAgentOrders = useMemo(() => {
-    if (!selectedAgent || !dashboard?.orders.length) return [];
-    return dashboard.orders
-      .filter((order) => order.couponCode?.trim().toUpperCase() === selectedAgent.code)
-      .sort((left, right) => right.createdAt - left.createdAt);
-  }, [dashboard, selectedAgent]);
   const referralCodeRows = useMemo(() => {
     if (!dashboard) return [];
 
@@ -1009,31 +977,6 @@ function AdminPage() {
         }
       });
   }, [codeQuery, codeSort, dashboard, referralSummaries]);
-  const referralOverviewStats = useMemo(() => {
-    const knownCodes = new Set<string>();
-    (dashboard?.users || []).forEach((user) => {
-      if (user.referralCode?.trim()) knownCodes.add(user.referralCode.trim().toUpperCase());
-    });
-    (dashboard?.referralAgents || []).forEach((agent) => {
-      if (agent.code?.trim()) knownCodes.add(agent.code.trim().toUpperCase());
-    });
-
-    if (!referralSummaries.length) {
-      return {
-        activeCodes: knownCodes.size,
-        monthPaidRevenue: 0,
-        monthPaidOrders: 0,
-        totalPaidRevenue: 0
-      };
-    }
-
-    return {
-      activeCodes: knownCodes.size,
-      monthPaidRevenue: referralSummaries.reduce((sum, summary) => sum + summary.monthPaidRevenue, 0),
-      monthPaidOrders: referralSummaries.reduce((sum, summary) => sum + summary.monthPaidOrders, 0),
-      totalPaidRevenue: referralSummaries.reduce((sum, summary) => sum + summary.paidRevenue, 0)
-    };
-  }, [dashboard, referralSummaries]);
   const overviewStats = useMemo(() => {
     if (!dashboard) {
       return {
@@ -1639,12 +1582,6 @@ function AdminPage() {
   }, [filteredOrders, selectedOrderId]);
 
   useEffect(() => {
-    if (filteredReferrals.length && !filteredReferrals.some((summary) => summary.code === selectedAgentCode)) {
-      setSelectedAgentCode(filteredReferrals[0].code);
-    }
-  }, [filteredReferrals, selectedAgentCode]);
-
-  useEffect(() => {
     setReferralCodeInput(selectedUser?.referralCode || "");
   }, [selectedUser?.id, selectedUser?.referralCode]);
 
@@ -1781,22 +1718,6 @@ function AdminPage() {
         order.price,
         formatDate(order.createdAt),
         order.source || ""
-      ])
-    ]);
-  };
-
-  const exportReferralsCsv = () => {
-    triggerCsvDownload("admin-agents-referrals.csv", [
-      ["Referral Code", "Monthly Paid Orders", "Monthly Paid Revenue", "All-Time Paid Orders", "All-Time Paid Revenue", "Total Orders", "Unique Customers", "Latest Sale"],
-      ...filteredReferrals.map((summary) => [
-        summary.code,
-        summary.monthPaidOrders,
-        summary.monthPaidRevenue,
-        summary.paidOrders,
-        summary.paidRevenue,
-        summary.totalOrders,
-        summary.uniqueCustomers,
-        formatDate(summary.latestSaleAt)
       ])
     ]);
   };
@@ -2958,240 +2879,131 @@ function AdminPage() {
     );
   };
 
-  const renderAgents = () => (
-    <div className="admin-section-stack">
-      <section className="admin-kpi-grid">
-        <article className="admin-kpi-card">
-          <span className="admin-kpi-label">Active referral codes</span>
-          <strong>{referralOverviewStats.activeCodes}</strong>
-          <small>Codes with at least one referred order</small>
-        </article>
-        <article className="admin-kpi-card">
-          <span className="admin-kpi-label">Monthly paid sales</span>
-          <strong>{referralOverviewStats.monthPaidOrders}</strong>
-          <small>{formatCurrency(referralOverviewStats.monthPaidRevenue)} commissionable this month</small>
-        </article>
-        <article className="admin-kpi-card">
-          <span className="admin-kpi-label">All-time referred revenue</span>
-          <strong>{formatCurrency(referralOverviewStats.totalPaidRevenue)}</strong>
-          <small>Paid/completed/succeeded orders attributed to codes</small>
-        </article>
-      </section>
+  const renderAgents = () => {
+    const query = agentQuery.trim().toLowerCase();
+    const agentCodes = [...(dashboard?.referralAgents || [])]
+      .filter((agent) =>
+        !query ||
+        agent.code.toLowerCase().includes(query) ||
+        agent.name?.toLowerCase().includes(query) ||
+        agent.email?.toLowerCase().includes(query)
+      )
+      .sort((left, right) => {
+        const rightCount = right.redemptionCount || 0;
+        const leftCount = left.redemptionCount || 0;
+        if (rightCount !== leftCount) return rightCount - leftCount;
+        return (right.latestRedeemedAt || right.createdAt || 0) - (left.latestRedeemedAt || left.createdAt || 0);
+      });
+    const totalRedemptions = (dashboard?.referralAgents || []).reduce(
+      (sum, agent) => sum + (agent.redemptionCount || 0),
+      0
+    );
 
-      <section className="admin-filters-bar">
-        <div className="admin-controls">
-          <label className="admin-control-field admin-control-field-wide">
-            <span>Search code</span>
-            <input
-              value={agentQuery}
-              onChange={(event) => setAgentQuery(event.target.value)}
-              placeholder="Referral code"
-            />
-          </label>
-          <label className="admin-control-field">
-            <span>Sort by</span>
-            <select
-              value={agentSort}
-              onChange={(event) => setAgentSort(event.target.value as AgentSortKey)}
-            >
-              <option value="monthPaidRevenue_desc">Monthly paid revenue</option>
-              <option value="paidRevenue_desc">All-time paid revenue</option>
-              <option value="totalOrders_desc">Total orders</option>
-              <option value="latestSaleAt_desc">Latest sale</option>
-              <option value="code_asc">Code A-Z</option>
-            </select>
-          </label>
-          <button type="button" className="admin-link-button" onClick={exportReferralsCsv} disabled={!filteredReferrals.length}>
-            Export CSV
-          </button>
-          <span className="admin-filter-summary">
-            Showing {filteredReferrals.length} of {referralSummaries.length}
-          </span>
-        </div>
-      </section>
+    return (
+      <div className="admin-section-stack">
+        <section className="admin-kpi-grid">
+          <article className="admin-kpi-card">
+            <span className="admin-kpi-label">Codes created</span>
+            <strong>{dashboard?.referralAgents.length ?? 0}</strong>
+            <small>Each code gives 1 month of Plus.</small>
+          </article>
+          <article className="admin-kpi-card">
+            <span className="admin-kpi-label">Total redemptions</span>
+            <strong>{totalRedemptions}</strong>
+            <small>Number of users who used an agent code.</small>
+          </article>
+        </section>
 
-      <section className="admin-master-detail">
-        <article className="admin-panel-card">
+        <section className="admin-panel-card">
           <div className="admin-panel-head">
             <div>
-              <p className="admin-panel-kicker">Agents & referrals</p>
-              <h3>Referral code performance</h3>
+              <p className="admin-panel-kicker">Create code</p>
+              <h3>Issue an agent Plus trial code</h3>
             </div>
           </div>
-          {filteredReferrals.length ? (
+          <div className="admin-coupon-form">
+            <div className="admin-controls admin-controls-roomy">
+              <label className="admin-control-field">
+                <span>Code</span>
+                <input value={newAgentCode} onChange={(event) => setNewAgentCode(event.target.value.toUpperCase())} placeholder="e.g. AGENT01" />
+              </label>
+              <label className="admin-control-field">
+                <span>Agent name</span>
+                <input value={newAgentName} onChange={(event) => setNewAgentName(event.target.value)} placeholder="Optional" />
+              </label>
+              <label className="admin-control-field">
+                <span>Agent email</span>
+                <input value={newAgentEmail} onChange={(event) => setNewAgentEmail(event.target.value)} placeholder="Optional" />
+              </label>
+              <button type="button" className="admin-submit-button" onClick={handleCreateReferralAgent} disabled={isSavingAgent}>
+                {isSavingAgent ? "Creating..." : "Create code"}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="admin-panel-card">
+          <div className="admin-panel-head">
+            <div>
+              <p className="admin-panel-kicker">Agent codes</p>
+              <h3>Usage</h3>
+            </div>
+          </div>
+          <section className="admin-filters-bar">
+            <div className="admin-controls">
+              <label className="admin-control-field admin-control-field-wide">
+                <span>Search</span>
+                <input value={agentQuery} onChange={(event) => setAgentQuery(event.target.value)} placeholder="Code, name, or email" />
+              </label>
+              <span className="admin-filter-summary">Showing {agentCodes.length}</span>
+            </div>
+          </section>
+          {agentCodes.length ? (
             <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Agent</th>
                     <th>Code</th>
-                    <th>Monthly paid sales</th>
-                    <th>Monthly paid revenue</th>
-                    <th>All-time paid revenue</th>
-                    <th>Total orders</th>
-                    <th>Customers</th>
-                    <th>Latest sale</th>
+                    <th>Agent</th>
+                    <th>Email</th>
+                    <th>Used by</th>
+                    <th>Latest use</th>
+                    <th>Created</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredReferrals.map((summary) => {
-                    const isSelected = selectedAgent?.code === summary.code;
-                    return (
-                      <tr
-                        key={summary.code}
-                        className={isSelected ? "is-selected" : ""}
-                        onClick={() => setSelectedAgentCode(summary.code)}
-                      >
-                        <td>{summary.agentName || summary.agentEmail || "--"}</td>
-                        <td>{summary.code}</td>
-                        <td>{summary.monthPaidOrders}</td>
-                        <td>{formatCurrency(summary.monthPaidRevenue)}</td>
-                        <td>{formatCurrency(summary.paidRevenue)}</td>
-                        <td>{summary.totalOrders}</td>
-                        <td>{summary.uniqueCustomers}</td>
-                        <td>{formatDate(summary.latestSaleAt)}</td>
-                      </tr>
-                    );
-                  })}
+                  {agentCodes.map((agent) => (
+                    <tr key={agent.id}>
+                      <td>{agent.code}</td>
+                      <td>{agent.name || "--"}</td>
+                      <td>{agent.email || "--"}</td>
+                      <td>{agent.redemptionCount || 0}</td>
+                      <td>{formatDate(agent.latestRedeemedAt || null)}</td>
+                      <td>{formatDate(agent.createdAt)}</td>
+                      <td>
+                        <button type="button" className="admin-copy-button" onClick={() => handleCopy(`agent-${agent.id}`, agent.code)}>
+                          {copiedField === `agent-${agent.id}` ? "Copied" : "Copy"}
+                        </button>
+                        <button type="button" className="admin-copy-button" onClick={() => handleDeleteReferralAgent(agent.id, agent.code)}>
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <div className="admin-empty-card admin-empty-expanded">
-              <strong>No referral activity yet</strong>
-              <p>Once customers place orders using agent codes like ORFD26, the performance summary will appear here.</p>
+            <div className="admin-empty-card">
+              <strong>No agent codes yet</strong>
+              <p>Create a code above and give it to an agent. Redemptions will show here.</p>
             </div>
           )}
-        </article>
-
-        <aside className="admin-detail-card">
-          <div className="admin-detail-head">
-            <p className="admin-panel-kicker">Selected code</p>
-            <h3>{selectedAgent?.code || "No code selected"}</h3>
-            <span className="admin-detail-subtitle">
-              {selectedAgent
-                ? "Monthly paid revenue is the cleanest base for end-of-period commission tracking."
-                : "Choose a referral code row to inspect monthly performance and linked orders."}
-            </span>
-          </div>
-          {selectedAgent ? (
-            <>
-              <div className="admin-detail-summary-grid">
-                <article className="admin-detail-summary-card">
-                  <span className="admin-status-label">Monthly paid sales</span>
-                  <strong>{selectedAgent.monthPaidOrders}</strong>
-                </article>
-                <article className="admin-detail-summary-card">
-                  <span className="admin-status-label">Monthly paid revenue</span>
-                  <strong>{formatCurrency(selectedAgent.monthPaidRevenue)}</strong>
-                </article>
-              </div>
-
-              <dl className="admin-detail-grid">
-                <div>
-                  <dt>Agent</dt>
-                  <dd>{selectedAgent.agentName || "--"}</dd>
-                </div>
-                <div>
-                  <dt>Agent email</dt>
-                  <dd>{selectedAgent.agentEmail || "--"}</dd>
-                </div>
-                <div>
-                  <dt>Total orders</dt>
-                  <dd>{selectedAgent.totalOrders}</dd>
-                </div>
-                <div>
-                  <dt>Unique customers</dt>
-                  <dd>{selectedAgent.uniqueCustomers}</dd>
-                </div>
-                <div>
-                  <dt>All-time paid orders</dt>
-                  <dd>{selectedAgent.paidOrders}</dd>
-                </div>
-                <div>
-                  <dt>All-time paid revenue</dt>
-                  <dd>{formatCurrency(selectedAgent.paidRevenue)}</dd>
-                </div>
-                <div>
-                  <dt>Monthly total orders</dt>
-                  <dd>{selectedAgent.monthOrders}</dd>
-                </div>
-                <div>
-                  <dt>Monthly total revenue</dt>
-                  <dd>{formatCurrency(selectedAgent.monthRevenue)}</dd>
-                </div>
-                <div>
-                  <dt>Latest sale</dt>
-                  <dd>{formatDate(selectedAgent.latestSaleAt)}</dd>
-                </div>
-                <div className="admin-detail-block">
-                  <dt>Referral code</dt>
-                  <dd className="admin-copy-row">
-                    <span>{selectedAgent.code}</span>
-                    <button type="button" className="admin-copy-button" onClick={() => handleCopy("agent-code", selectedAgent.code)}>
-                      {copiedField === "agent-code" ? "Copied" : "Copy"}
-                    </button>
-                  </dd>
-                </div>
-              </dl>
-
-              <div className="admin-related-panel">
-                <div className="admin-related-panel-head">
-                  <p className="admin-panel-kicker">Linked orders</p>
-                  <strong>{selectedAgentOrders.length ? "Orders using this code" : "No linked orders"}</strong>
-                </div>
-                {selectedAgentOrders.length ? (
-                  <div className="admin-mini-list">
-                    {selectedAgentOrders.slice(0, 6).map((order) => (
-                      <button
-                        key={order.id}
-                        type="button"
-                        className="admin-mini-row"
-                        onClick={() => {
-                          setSelectedOrderId(order.id);
-                          setActiveSection("sales");
-                        }}
-                      >
-                        <div>
-                          <strong>{order.orderNumber}</strong>
-                          <span>{order.customerName || order.userEmail || "Unassigned customer"}</span>
-                        </div>
-                        <div className="admin-mini-row-meta">
-                          <span className={`admin-tag admin-tag-${getStatusTone(order.status)}`}>{order.status}</span>
-                          <small>{formatCurrency(order.price)}</small>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="admin-related-note">No orders have used this referral code yet.</div>
-                )}
-              </div>
-              {selectedAgent.agentUserId ? (
-                <div className="admin-related-action">
-                  <button
-                    type="button"
-                    className="admin-link-button"
-                    onClick={() => {
-                      setSelectedUserId(selectedAgent.agentUserId);
-                      setActiveSection("users");
-                    }}
-                  >
-                    Open agent user
-                  </button>
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <div className="admin-empty-card admin-empty-detail">
-              <strong>No detail available</strong>
-              <p>Select a referral code row to review attributed sales and linked orders.</p>
-            </div>
-          )}
-        </aside>
-      </section>
-    </div>
-  );
+        </section>
+      </div>
+    );
+  };
 
   const renderCodes = () => {
     return (
