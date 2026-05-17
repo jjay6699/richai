@@ -247,7 +247,7 @@ const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; de
   { id: "overview", label: "Overview", shortLabel: "OV", description: "Key operational snapshot" },
   { id: "users", label: "Users", shortLabel: "US", description: "App registrations and account activity" },
   { id: "sales", label: "Sales", shortLabel: "SA", description: "Orders, revenue, and payment status" },
-  { id: "agents", label: "Agent codes", shortLabel: "AG", description: "Create Plus trial codes and track redemptions" },
+  { id: "agents", label: "Agent", shortLabel: "AG", description: "Create Plus trial codes and track redemptions" },
   { id: "coupons", label: "Discount coupons", shortLabel: "DC", description: "Create and manage customer discount coupons" },
   { id: "analytics", label: "Analytics", shortLabel: "AN", description: "Trend and performance insights" }
 ];
@@ -394,7 +394,7 @@ const getSectionMeta = (
 
   if (activeSection === "agents") {
     return {
-      kicker: "Agent codes",
+      kicker: "Agent",
       title: "Plus trial codes",
       description: "Create a code for an agent. When a user redeems it, they get 1 month of Plus.",
       badge: dashboard ? `${dashboard.referralAgents.length} codes` : "Awaiting data",
@@ -794,6 +794,7 @@ function AdminPage() {
   const [agentDateRange, setAgentDateRange] = useState<DateRangeFilter>("30d");
   const [agentSort, setAgentSort] = useState<AgentSortKey>("totalRevenue_desc");
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
   const [agentWorkspaceTab, setAgentWorkspaceTab] = useState<AgentWorkspaceTab>("directory");
   const [agentDetailTab, setAgentDetailTab] = useState<AgentDetailTab>("summary");
   const [newAgentCode, setNewAgentCode] = useState("");
@@ -3231,7 +3232,7 @@ function AdminPage() {
                 </div>
                 <div className="admin-note-item">
                   <strong>Focused detail view</strong>
-                  <span>Select an agent in the directory to inspect summary metrics, redeemed users, and recent activity without mixing it into the creation form.</span>
+                  <span>Open an agent profile in a modal to inspect summary metrics, redeemed users, and recent activity without cluttering the page.</span>
                 </div>
               </div>
             </article>
@@ -3263,255 +3264,262 @@ function AdminPage() {
               </article>
             </section>
 
-            <section className="admin-master-detail">
-              <article className="admin-panel-card">
-                <div className="admin-panel-head">
-                  <div>
-                    <p className="admin-panel-kicker">Agent directory</p>
-                    <h3>Sort and select an agent</h3>
-                  </div>
+            <section className="admin-panel-card">
+              <div className="admin-panel-head">
+                <div>
+                  <p className="admin-panel-kicker">Agent directory</p>
+                  <h3>Sort and select an agent</h3>
                 </div>
-                <section className="admin-filters-bar">
-                  <div className="admin-controls">
-                    <label className="admin-control-field admin-control-field-wide">
-                      <span>Search</span>
-                      <input value={agentQuery} onChange={(event) => setAgentQuery(event.target.value)} placeholder="Code, name, email, or phone" />
-                    </label>
-                    <label className="admin-control-field">
-                      <span>Period</span>
-                      <select value={agentDateRange} onChange={(event) => setAgentDateRange(event.target.value as DateRangeFilter)}>
-                        <option value="all">All time</option>
-                        <option value="30d">Last 30 days</option>
-                        <option value="90d">Last 90 days</option>
-                        <option value="365d">Last 12 months</option>
-                        <option value="7d">Last 7 days</option>
-                      </select>
-                    </label>
-                    <label className="admin-control-field">
-                      <span>Sort</span>
-                      <select value={agentSort} onChange={(event) => setAgentSort(event.target.value as AgentSortKey)}>
-                        <option value="totalRevenue_desc">Total revenue</option>
-                        <option value="subscriptionRevenue_desc">Subscription revenue</option>
-                        <option value="orderRevenue_desc">Supplement revenue</option>
-                        <option value="latestActivity_desc">Latest activity</option>
-                        <option value="redemptions_desc">Redemptions</option>
-                        <option value="createdAt_desc">Newest code</option>
-                      </select>
-                    </label>
-                  </div>
-                </section>
-                {agentInsights.rows.length ? (
-                  <div className="admin-mini-list admin-agent-list">
-                    {agentInsights.rows.map((agent) => (
-                      <button
-                        key={agent.id}
-                        type="button"
-                        className={`admin-mini-row${selectedAgent?.id === agent.id ? " is-active" : ""}`}
-                        onClick={() => setSelectedAgentId(agent.id)}
-                      >
-                        <div>
-                          <strong>{agent.name || agent.code}</strong>
-                          <span>{agent.code} - {agent.redemptionsInRange} redeemed - {agent.convertedUsers} converted</span>
-                        </div>
-                        <div className="admin-mini-row-meta">
-                          <strong>{formatCurrency(agent.totalRevenue)}</strong>
-                          <small>{formatDate(agent.latestActivityAt || null)}</small>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="admin-empty-card">
-                    <strong>No agent codes yet</strong>
-                    <p>Create a code to start tracking redemptions, renewals, and attributed orders.</p>
-                  </div>
-                )}
-              </article>
-
-              <aside className="admin-detail-card">
-                {selectedAgent ? (
-                  <>
-                    <div className="admin-detail-head">
+              </div>
+              <section className="admin-filters-bar">
+                <div className="admin-controls">
+                  <label className="admin-control-field admin-control-field-wide">
+                    <span>Search</span>
+                    <input value={agentQuery} onChange={(event) => setAgentQuery(event.target.value)} placeholder="Code, name, email, or phone" />
+                  </label>
+                  <label className="admin-control-field">
+                    <span>Period</span>
+                    <select value={agentDateRange} onChange={(event) => setAgentDateRange(event.target.value as DateRangeFilter)}>
+                      <option value="all">All time</option>
+                      <option value="30d">Last 30 days</option>
+                      <option value="90d">Last 90 days</option>
+                      <option value="365d">Last 12 months</option>
+                      <option value="7d">Last 7 days</option>
+                    </select>
+                  </label>
+                  <label className="admin-control-field">
+                    <span>Sort</span>
+                    <select value={agentSort} onChange={(event) => setAgentSort(event.target.value as AgentSortKey)}>
+                      <option value="totalRevenue_desc">Total revenue</option>
+                      <option value="subscriptionRevenue_desc">Subscription revenue</option>
+                      <option value="orderRevenue_desc">Supplement revenue</option>
+                      <option value="latestActivity_desc">Latest activity</option>
+                      <option value="redemptions_desc">Redemptions</option>
+                      <option value="createdAt_desc">Newest code</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+              {agentInsights.rows.length ? (
+                <div className="admin-mini-list admin-agent-list">
+                  {agentInsights.rows.map((agent) => (
+                    <button
+                      key={agent.id}
+                      type="button"
+                      className={`admin-mini-row${selectedAgent?.id === agent.id && isAgentModalOpen ? " is-active" : ""}`}
+                      onClick={() => {
+                        setSelectedAgentId(agent.id);
+                        setAgentDetailTab("summary");
+                        setIsAgentModalOpen(true);
+                      }}
+                    >
                       <div>
-                        <h3>{selectedAgent.name || selectedAgent.code}</h3>
-                        <span className="admin-detail-subtitle">
-                          {selectedAgent.code} - {selectedAgent.email || selectedAgent.phone || "No contact details"}
-                        </span>
+                        <strong>{agent.name || agent.code}</strong>
+                        <span>{agent.code} - {agent.redemptionsInRange} redeemed - {agent.convertedUsers} converted</span>
                       </div>
-                      <div className="admin-detail-actions">
-                        <button type="button" className="admin-copy-button" onClick={() => handleCopy(`agent-${selectedAgent.id}`, selectedAgent.code)}>
-                          {copiedField === `agent-${selectedAgent.id}` ? "Copied" : "Copy code"}
-                        </button>
-                        <button type="button" className="admin-copy-button" onClick={() => handleDeleteReferralAgent(selectedAgent.id, selectedAgent.code)}>
-                          Delete
-                        </button>
+                      <div className="admin-mini-row-meta">
+                        <strong>{formatCurrency(agent.totalRevenue)}</strong>
+                        <small>{formatDate(agent.latestActivityAt || null)}</small>
                       </div>
-                    </div>
-
-                    <div className="admin-segmented-control" role="tablist" aria-label="Selected agent detail views">
-                      <button
-                        type="button"
-                        className={`admin-segmented-button${agentDetailTab === "summary" ? " is-active" : ""}`}
-                        onClick={() => setAgentDetailTab("summary")}
-                      >
-                        Summary
-                      </button>
-                      <button
-                        type="button"
-                        className={`admin-segmented-button${agentDetailTab === "users" ? " is-active" : ""}`}
-                        onClick={() => setAgentDetailTab("users")}
-                      >
-                        Users
-                      </button>
-                      <button
-                        type="button"
-                        className={`admin-segmented-button${agentDetailTab === "timeline" ? " is-active" : ""}`}
-                        onClick={() => setAgentDetailTab("timeline")}
-                      >
-                        Activity
-                      </button>
-                    </div>
-
-                    {agentDetailTab === "summary" ? (
-                      <>
-                        <div className="admin-detail-summary-grid">
-                          <article className="admin-detail-summary-card">
-                            <span className="admin-status-label">Attributed users</span>
-                            <strong>{selectedAgent.attributedUsers}</strong>
-                          </article>
-                          <article className="admin-detail-summary-card">
-                            <span className="admin-status-label">Total revenue</span>
-                            <strong>{formatCurrency(selectedAgent.totalRevenue)}</strong>
-                          </article>
-                          <article className="admin-detail-summary-card">
-                            <span className="admin-status-label">Subscription revenue</span>
-                            <strong>{formatCurrency(selectedAgent.subscriptionRevenue)}</strong>
-                          </article>
-                          <article className="admin-detail-summary-card">
-                            <span className="admin-status-label">Supplement revenue</span>
-                            <strong>{formatCurrency(selectedAgent.orderRevenue)}</strong>
-                          </article>
-                        </div>
-                        <dl className="admin-detail-grid">
-                          <div>
-                            <dt>Redeemed users</dt>
-                            <dd>{selectedAgent.redemptionsInRange}</dd>
-                          </div>
-                          <div>
-                            <dt>Converted users</dt>
-                            <dd>{selectedAgent.convertedUsers}</dd>
-                          </div>
-                          <div>
-                            <dt>Active paid now</dt>
-                            <dd>{selectedAgent.activePaidUsers}</dd>
-                          </div>
-                          <div>
-                            <dt>Trial users active</dt>
-                            <dd>{selectedAgent.activeTrials}</dd>
-                          </div>
-                          <div>
-                            <dt>Renewals</dt>
-                            <dd>{selectedAgent.renewalCount}</dd>
-                          </div>
-                          <div>
-                            <dt>First payments</dt>
-                            <dd>{formatCurrency(selectedAgent.firstPaymentRevenue)}</dd>
-                          </div>
-                          <div>
-                            <dt>Renewal revenue</dt>
-                            <dd>{formatCurrency(selectedAgent.renewalRevenue)}</dd>
-                          </div>
-                          <div>
-                            <dt>Paid orders</dt>
-                            <dd>{selectedAgent.paidOrderCount}</dd>
-                          </div>
-                          <div>
-                            <dt>Code created</dt>
-                            <dd>{formatDate(selectedAgent.createdAt)}</dd>
-                          </div>
-                          <div>
-                            <dt>Latest activity</dt>
-                            <dd>{formatDate(selectedAgent.latestActivityAt || null)}</dd>
-                          </div>
-                        </dl>
-                      </>
-                    ) : null}
-
-                    {agentDetailTab === "users" ? (
-                      agentInsights.selectedUsers.length ? (
-                        <div className="admin-table-wrap">
-                          <table className="admin-table admin-table-wide">
-                            <thead>
-                              <tr>
-                                <th>User</th>
-                                <th>Redeemed</th>
-                                <th>Current tier</th>
-                                <th>First paid</th>
-                                <th>Last renewal</th>
-                                <th>Subscription rev</th>
-                                <th>Paid orders</th>
-                                <th>Total</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {agentInsights.selectedUsers.map((user) => (
-                                <tr key={`${selectedAgent.id}-${user.userId}`}>
-                                  <td>
-                                    <strong>{user.name || user.email || user.userId}</strong>
-                                    <br />
-                                    <small>{user.email || user.country || user.userId}</small>
-                                  </td>
-                                  <td>{formatDate(user.redeemedAt)}</td>
-                                  <td>{user.currentTier.toUpperCase()}</td>
-                                  <td>{formatDate(user.firstPaidAt)}</td>
-                                  <td>{formatDate(user.lastRenewalAt)}</td>
-                                  <td>{formatCurrency(user.subscriptionRevenue)}</td>
-                                  <td>{user.orderCount}</td>
-                                  <td>{formatCurrency(user.totalRevenue)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <div className="admin-empty-card">
-                          <strong>No attributed users yet</strong>
-                          <p>Once people redeem this code, their renewals and purchases will appear here.</p>
-                        </div>
-                      )
-                    ) : null}
-
-                    {agentDetailTab === "timeline" ? (
-                      agentInsights.selectedTimeline.length ? (
-                        <div className="admin-mini-list">
-                          {agentInsights.selectedTimeline.map((event) => (
-                            <div key={event.id} className="admin-mini-row admin-mini-row-static">
-                              <div>
-                                <strong>{event.label}</strong>
-                                <span>{event.meta}</span>
-                              </div>
-                              <div className="admin-mini-row-meta">
-                                <span>{formatDate(event.occurredAt)}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="admin-empty-card">
-                          <strong>No tracked activity yet</strong>
-                          <p>We'll start filling this once a user redeems the code or Stripe sends billing activity.</p>
-                        </div>
-                      )
-                    ) : null}
-                  </>
-                ) : (
-                  <div className="admin-empty-card admin-empty-detail">
-                    <strong>Select an agent</strong>
-                    <p>Choose an agent from the directory to inspect revenue, conversions, users, and recent activity.</p>
-                  </div>
-                )}
-              </aside>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="admin-empty-card">
+                  <strong>No agent codes yet</strong>
+                  <p>Create a code to start tracking redemptions, renewals, and attributed orders.</p>
+                </div>
+              )}
             </section>
+
+            {selectedAgent && isAgentModalOpen ? (
+              <div className="admin-agent-modal-backdrop" onClick={() => setIsAgentModalOpen(false)} role="presentation">
+                <div
+                  className="admin-agent-modal"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="agent-modal-title"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <div className="admin-detail-head">
+                    <div>
+                      <p className="admin-panel-kicker">Agent profile</p>
+                      <h3 id="agent-modal-title">{selectedAgent.name || selectedAgent.code}</h3>
+                      <span className="admin-detail-subtitle">
+                        {selectedAgent.code} - {selectedAgent.email || selectedAgent.phone || "No contact details"}
+                      </span>
+                    </div>
+                    <div className="admin-detail-actions">
+                      <button type="button" className="admin-copy-button" onClick={() => handleCopy(`agent-${selectedAgent.id}`, selectedAgent.code)}>
+                        {copiedField === `agent-${selectedAgent.id}` ? "Copied" : "Copy code"}
+                      </button>
+                      <button type="button" className="admin-copy-button" onClick={() => handleDeleteReferralAgent(selectedAgent.id, selectedAgent.code)}>
+                        Delete
+                      </button>
+                      <button type="button" className="admin-copy-button" onClick={() => setIsAgentModalOpen(false)}>
+                        Close
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="admin-segmented-control" role="tablist" aria-label="Selected agent detail views">
+                    <button
+                      type="button"
+                      className={`admin-segmented-button${agentDetailTab === "summary" ? " is-active" : ""}`}
+                      onClick={() => setAgentDetailTab("summary")}
+                    >
+                      Summary
+                    </button>
+                    <button
+                      type="button"
+                      className={`admin-segmented-button${agentDetailTab === "users" ? " is-active" : ""}`}
+                      onClick={() => setAgentDetailTab("users")}
+                    >
+                      Users
+                    </button>
+                    <button
+                      type="button"
+                      className={`admin-segmented-button${agentDetailTab === "timeline" ? " is-active" : ""}`}
+                      onClick={() => setAgentDetailTab("timeline")}
+                    >
+                      Activity
+                    </button>
+                  </div>
+
+                  {agentDetailTab === "summary" ? (
+                    <>
+                      <div className="admin-detail-summary-grid">
+                        <article className="admin-detail-summary-card">
+                          <span className="admin-status-label">Attributed users</span>
+                          <strong>{selectedAgent.attributedUsers}</strong>
+                        </article>
+                        <article className="admin-detail-summary-card">
+                          <span className="admin-status-label">Total revenue</span>
+                          <strong>{formatCurrency(selectedAgent.totalRevenue)}</strong>
+                        </article>
+                        <article className="admin-detail-summary-card">
+                          <span className="admin-status-label">Subscription revenue</span>
+                          <strong>{formatCurrency(selectedAgent.subscriptionRevenue)}</strong>
+                        </article>
+                        <article className="admin-detail-summary-card">
+                          <span className="admin-status-label">Supplement revenue</span>
+                          <strong>{formatCurrency(selectedAgent.orderRevenue)}</strong>
+                        </article>
+                      </div>
+                      <dl className="admin-detail-grid">
+                        <div>
+                          <dt>Redeemed users</dt>
+                          <dd>{selectedAgent.redemptionsInRange}</dd>
+                        </div>
+                        <div>
+                          <dt>Converted users</dt>
+                          <dd>{selectedAgent.convertedUsers}</dd>
+                        </div>
+                        <div>
+                          <dt>Active paid now</dt>
+                          <dd>{selectedAgent.activePaidUsers}</dd>
+                        </div>
+                        <div>
+                          <dt>Trial users active</dt>
+                          <dd>{selectedAgent.activeTrials}</dd>
+                        </div>
+                        <div>
+                          <dt>Renewals</dt>
+                          <dd>{selectedAgent.renewalCount}</dd>
+                        </div>
+                        <div>
+                          <dt>First payments</dt>
+                          <dd>{formatCurrency(selectedAgent.firstPaymentRevenue)}</dd>
+                        </div>
+                        <div>
+                          <dt>Renewal revenue</dt>
+                          <dd>{formatCurrency(selectedAgent.renewalRevenue)}</dd>
+                        </div>
+                        <div>
+                          <dt>Paid orders</dt>
+                          <dd>{selectedAgent.paidOrderCount}</dd>
+                        </div>
+                        <div>
+                          <dt>Code created</dt>
+                          <dd>{formatDate(selectedAgent.createdAt)}</dd>
+                        </div>
+                        <div>
+                          <dt>Latest activity</dt>
+                          <dd>{formatDate(selectedAgent.latestActivityAt || null)}</dd>
+                        </div>
+                      </dl>
+                    </>
+                  ) : null}
+
+                  {agentDetailTab === "users" ? (
+                    agentInsights.selectedUsers.length ? (
+                      <div className="admin-table-wrap">
+                        <table className="admin-table admin-table-wide">
+                          <thead>
+                            <tr>
+                              <th>User</th>
+                              <th>Redeemed</th>
+                              <th>Current tier</th>
+                              <th>First paid</th>
+                              <th>Last renewal</th>
+                              <th>Subscription rev</th>
+                              <th>Paid orders</th>
+                              <th>Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {agentInsights.selectedUsers.map((user) => (
+                              <tr key={`${selectedAgent.id}-${user.userId}`}>
+                                <td>
+                                  <strong>{user.name || user.email || user.userId}</strong>
+                                  <br />
+                                  <small>{user.email || user.country || user.userId}</small>
+                                </td>
+                                <td>{formatDate(user.redeemedAt)}</td>
+                                <td>{user.currentTier.toUpperCase()}</td>
+                                <td>{formatDate(user.firstPaidAt)}</td>
+                                <td>{formatDate(user.lastRenewalAt)}</td>
+                                <td>{formatCurrency(user.subscriptionRevenue)}</td>
+                                <td>{user.orderCount}</td>
+                                <td>{formatCurrency(user.totalRevenue)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="admin-empty-card">
+                        <strong>No attributed users yet</strong>
+                        <p>Once people redeem this code, their renewals and purchases will appear here.</p>
+                      </div>
+                    )
+                  ) : null}
+
+                  {agentDetailTab === "timeline" ? (
+                    agentInsights.selectedTimeline.length ? (
+                      <div className="admin-mini-list">
+                        {agentInsights.selectedTimeline.map((event) => (
+                          <div key={event.id} className="admin-mini-row admin-mini-row-static">
+                            <div>
+                              <strong>{event.label}</strong>
+                              <span>{event.meta}</span>
+                            </div>
+                            <div className="admin-mini-row-meta">
+                              <span>{formatDate(event.occurredAt)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="admin-empty-card">
+                        <strong>No tracked activity yet</strong>
+                        <p>We'll start filling this once a user redeems the code or Stripe sends billing activity.</p>
+                      </div>
+                    )
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </>
         ) : null}
       </div>
