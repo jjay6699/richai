@@ -2159,7 +2159,7 @@ function AdminPage() {
 
   const handleDeleteReferralAgent = async (agentId: string, code: string) => {
     if (!agentId) return;
-    const confirmed = window.confirm(`Delete referral code ${code}? This cannot be undone.`);
+    const confirmed = window.confirm(`Archive agent code ${code}? It will be removed from the active list and can no longer be redeemed.`);
     if (!confirmed) return;
 
     setIsSavingAgent(true);
@@ -2172,9 +2172,9 @@ function AdminPage() {
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
         if (payload?.error === "agent_not_found") {
-          throw new Error("That referral code no longer exists.");
+          throw new Error("That agent code no longer exists.");
         }
-        throw new Error("Unable to delete referral code.");
+        throw new Error("Unable to archive agent code.");
       }
 
       setDashboard((current) => {
@@ -2184,9 +2184,9 @@ function AdminPage() {
           referralAgents: (current.referralAgents || []).filter((agent) => agent.id !== agentId)
         };
       });
-      setFlashMessage("Referral code deleted.");
+      setFlashMessage("Agent code archived.");
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Unable to delete referral code.");
+      setError(nextError instanceof Error ? nextError.message : "Unable to archive agent code.");
     } finally {
       setIsSavingAgent(false);
     }
