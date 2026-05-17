@@ -32,6 +32,7 @@ interface AdminOrder {
 interface AdminReferralAgent {
   id: string;
   code: string;
+  codeType: "plus" | "pro" | "superadmin";
   name: string | null;
   email: string | null;
   phone?: string | null;
@@ -53,7 +54,7 @@ interface AdminAgentRedemption {
 
 interface AdminSubscriptionSnapshot {
   userId: string;
-  tier: "free" | "plus" | "pro";
+  tier: "free" | "plus" | "pro" | "superadmin";
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   stripePriceId?: string | null;
@@ -82,7 +83,7 @@ interface AdminSubscriptionBillingEvent {
   stripeSubscriptionId: string | null;
   stripeInvoiceId: string | null;
   eventType: string;
-  tier: "free" | "plus" | "pro";
+  tier: "free" | "plus" | "pro" | "superadmin";
   status: string | null;
   amount: number | null;
   currency: string | null;
@@ -227,6 +228,7 @@ interface AgentAttributedUserRow {
 type AdminSection = "overview" | "users" | "sales" | "agents" | "codes" | "coupons" | "analytics";
 type FetchStatus = "idle" | "authenticated" | "refresh_failed" | "expired";
 type DateRangeFilter = "all" | "7d" | "30d" | "90d" | "365d" | "custom";
+type AgentCodeType = "plus" | "pro" | "superadmin";
 type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "name_asc" | "email_asc";
 type OrderSortKey = "createdAt_desc" | "createdAt_asc" | "price_desc" | "price_asc" | "status_asc" | "customer_asc";
 type AgentSortKey =
@@ -247,7 +249,7 @@ const NAV_ITEMS: Array<{ id: AdminSection; label: string; shortLabel: string; de
   { id: "overview", label: "Overview", shortLabel: "OV", description: "Key operational snapshot" },
   { id: "users", label: "Users", shortLabel: "US", description: "App registrations and account activity" },
   { id: "sales", label: "Sales", shortLabel: "SA", description: "Orders, revenue, and payment status" },
-  { id: "agents", label: "Agent", shortLabel: "AG", description: "Create Plus trial codes and track redemptions" },
+  { id: "agents", label: "Agent", shortLabel: "AG", description: "Create agent access codes and track redemptions" },
   { id: "coupons", label: "Discount coupons", shortLabel: "DC", description: "Create and manage customer discount coupons" },
   { id: "analytics", label: "Analytics", shortLabel: "AN", description: "Trend and performance insights" }
 ];
@@ -288,6 +290,12 @@ const formatCurrency = (value: number) =>
     minimumFractionDigits: 2
   }).format(value || 0);
 
+const formatAgentCodeTypeLabel = (value: AgentCodeType | string | null | undefined) => {
+  if (value === "pro") return "Pro";
+  if (value === "superadmin") return "SuperAdmin";
+  return "Plus";
+};
+
 const getDateRangeThreshold = (range: DateRangeFilter) => {
   if (range === "all") return null;
   if (range === "custom") return null;
@@ -307,7 +315,7 @@ const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"])
 
 const isActivePaidSubscription = (subscription: AdminSubscriptionSnapshot | null | undefined) => {
   if (!subscription) return false;
-  if (subscription.tier !== "plus" && subscription.tier !== "pro") return false;
+  if (subscription.tier !== "plus" && subscription.tier !== "pro" && subscription.tier !== "superadmin") return false;
 
   const now = Date.now();
   const status = subscription.status?.trim().toLowerCase() || "";
@@ -403,8 +411,8 @@ const getSectionMeta = (
   if (activeSection === "agents") {
     return {
       kicker: "Agent",
-      title: "Plus trial codes",
-      description: "Create a code for an agent. When a user redeems it, they get 1 month of Plus.",
+      title: "Agent access codes",
+      description: "Create a code for an agent. Users can redeem it for Plus, Pro, or internal SuperAdmin access.",
       badge: dashboard ? `${dashboard.referralAgents.length} codes` : "Awaiting data",
       timestampLabel: "Latest redemption",
       timestampValue: formatDate(
@@ -547,7 +555,7 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
 const requestReferralAgentCreate = async (
   nextUsername: string,
   nextPassword: string,
-  payload: { code: string; name?: string | null; email?: string | null; phone?: string | null }
+  payload: { code: string; codeType: AgentCodeType; name?: string | null; email?: string | null; phone?: string | null }
 ) => {
   const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword), "Content-Type": "application/json" };
   let lastErrorResponse: Response | null = null;
@@ -808,6 +816,7 @@ function AdminPage() {
   const [agentWorkspaceTab, setAgentWorkspaceTab] = useState<AgentWorkspaceTab>("directory");
   const [agentDetailTab, setAgentDetailTab] = useState<AgentDetailTab>("summary");
   const [newAgentCode, setNewAgentCode] = useState("");
+  const [newAgentCodeType, setNewAgentCodeType] = useState<AgentCodeType>("plus");
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentEmail, setNewAgentEmail] = useState("");
   const [newAgentPhone, setNewAgentPhone] = useState("");
@@ -1147,7 +1156,7 @@ function AdminPage() {
             return {
               id: `redemption-${redemption.id}`,
               label: `${user?.name || user?.email || redemption.userId} redeemed ${selectedAgent.code}`,
-              meta: "Free Plus trial granted",
+              meta: `${formatAgentCodeTypeLabel(selectedAgent.codeType)} access granted`,
               occurredAt: redemption.redeemedAt
             };
           }),
@@ -2101,6 +2110,7 @@ function AdminPage() {
     try {
       const response = await requestReferralAgentCreate(username.trim(), password, {
         code,
+        codeType: newAgentCodeType,
         name: newAgentName.trim() || null,
         email: newAgentEmail.trim() || null,
         phone: newAgentPhone.trim() || null
@@ -2112,20 +2122,20 @@ function AdminPage() {
 
       if (!response.ok || !payload?.agent) {
         if (payload?.error === "invalid_referral_code") {
-          throw new Error("Referral code must be 4-24 characters using only letters and numbers.");
+          throw new Error("Agent code must be 4-24 characters using only letters and numbers.");
         }
         if (payload?.error === "invalid_email") {
           throw new Error("Please enter a valid agent email address.");
         }
         if (payload?.error === "referral_code_in_use") {
-          throw new Error("That referral code is already assigned to another user or agent.");
+          throw new Error("That agent code is already assigned to another user or agent.");
         }
-        throw new Error("Unable to create referral code.");
+        throw new Error("Unable to create agent code.");
       }
 
       const createdAgent = payload.agent;
       if (!createdAgent) {
-        throw new Error("Unable to create referral code.");
+        throw new Error("Unable to create agent code.");
       }
       setDashboard((current) => {
         if (!current) return current;
@@ -2135,12 +2145,13 @@ function AdminPage() {
         };
       });
       setNewAgentCode("");
+      setNewAgentCodeType("plus");
       setNewAgentName("");
       setNewAgentEmail("");
       setNewAgentPhone("");
-      setFlashMessage("Referral code created.");
+      setFlashMessage("Agent access code created.");
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Unable to create referral code.");
+      setError(nextError instanceof Error ? nextError.message : "Unable to create agent code.");
     } finally {
       setIsSavingAgent(false);
     }
@@ -3200,62 +3211,62 @@ function AdminPage() {
         </section>
 
         {agentWorkspaceTab === "create" ? (
-          <section className="admin-overview-grid">
-            <article className="admin-panel-card">
-              <div className="admin-panel-head">
-                <div>
-                  <p className="admin-panel-kicker">Create code</p>
-                  <h3>Issue an agent Plus trial code</h3>
-                  <p className="admin-panel-copy">
-                    Each code grants one month of Plus when redeemed. Contact details are optional.
-                  </p>
-                </div>
+          <section className="admin-panel-card">
+            <div className="admin-panel-head">
+              <div>
+                <p className="admin-panel-kicker">Create code</p>
+                <h3>Issue an agent access code</h3>
+                <p className="admin-panel-copy">
+                  Choose what the code unlocks at redemption time. Contact details are optional and attribution remains attached to that agent after redemption.
+                </p>
               </div>
-              <div className="admin-controls admin-controls-roomy">
-                <label className="admin-control-field">
-                  <span>Code</span>
-                  <input value={newAgentCode} onChange={(event) => setNewAgentCode(event.target.value.toUpperCase())} placeholder="e.g. AGENT01" />
-                </label>
-                <label className="admin-control-field">
-                  <span>Agent name</span>
-                  <input value={newAgentName} onChange={(event) => setNewAgentName(event.target.value)} placeholder="Optional" />
-                </label>
-                <label className="admin-control-field">
-                  <span>Agent email</span>
-                  <input value={newAgentEmail} onChange={(event) => setNewAgentEmail(event.target.value)} placeholder="Optional" />
-                </label>
-                <label className="admin-control-field">
-                  <span>Phone number</span>
-                  <input value={newAgentPhone} onChange={(event) => setNewAgentPhone(event.target.value)} placeholder="Optional" />
-                </label>
-                <button type="button" className="admin-submit-button" onClick={handleCreateReferralAgent} disabled={isSavingAgent}>
-                  {isSavingAgent ? "Creating..." : "Create code"}
-                </button>
-              </div>
-            </article>
-
-            <article className="admin-panel-card">
-              <div className="admin-panel-head">
-                <div>
-                  <p className="admin-panel-kicker">Tracking</p>
-                  <h3>What this code will track</h3>
-                </div>
-              </div>
-              <div className="admin-note-list">
-                <div className="admin-note-item">
-                  <strong>Permanent attribution</strong>
-                  <span>Once a user redeems the code, later subscription renewals and paid supplement orders stay attached to that agent.</span>
-                </div>
-                <div className="admin-note-item">
-                  <strong>Date-based earnings</strong>
-                  <span>The Agent directory view lets you sort by total revenue, subscription revenue, supplement revenue, or latest activity across different periods.</span>
-                </div>
-                <div className="admin-note-item">
-                  <strong>Focused detail view</strong>
-                  <span>Open an agent profile in a modal to inspect summary metrics, redeemed users, and recent activity without cluttering the page.</span>
-                </div>
-              </div>
-            </article>
+            </div>
+            <div className="admin-detail-summary-grid admin-create-code-summary">
+              <article className="admin-detail-summary-card">
+                <span className="admin-status-label">Plus</span>
+                <strong>1 month</strong>
+                <small>Good for regular agent-led trials.</small>
+              </article>
+              <article className="admin-detail-summary-card">
+                <span className="admin-status-label">Pro</span>
+                <strong>1 month</strong>
+                <small>Unlocks higher report allowance during the access period.</small>
+              </article>
+              <article className="admin-detail-summary-card">
+                <span className="admin-status-label">SuperAdmin</span>
+                <strong>Unlimited testing</strong>
+                <small>Internal admin testing access without report limits.</small>
+              </article>
+            </div>
+            <div className="admin-controls admin-controls-roomy">
+              <label className="admin-control-field">
+                <span>Code</span>
+                <input value={newAgentCode} onChange={(event) => setNewAgentCode(event.target.value.toUpperCase())} placeholder="e.g. AGENT01" />
+              </label>
+              <label className="admin-control-field">
+                <span>Code type</span>
+                <select value={newAgentCodeType} onChange={(event) => setNewAgentCodeType(event.target.value as AgentCodeType)}>
+                  <option value="plus">Plus</option>
+                  <option value="pro">Pro</option>
+                  <option value="superadmin">SuperAdmin</option>
+                </select>
+              </label>
+              <label className="admin-control-field">
+                <span>Agent name</span>
+                <input value={newAgentName} onChange={(event) => setNewAgentName(event.target.value)} placeholder="Optional" />
+              </label>
+              <label className="admin-control-field">
+                <span>Agent email</span>
+                <input value={newAgentEmail} onChange={(event) => setNewAgentEmail(event.target.value)} placeholder="Optional" />
+              </label>
+              <label className="admin-control-field">
+                <span>Phone number</span>
+                <input value={newAgentPhone} onChange={(event) => setNewAgentPhone(event.target.value)} placeholder="Optional" />
+              </label>
+              <button type="button" className="admin-submit-button" onClick={handleCreateReferralAgent} disabled={isSavingAgent}>
+                {isSavingAgent ? "Creating..." : `Create ${formatAgentCodeTypeLabel(newAgentCodeType)} code`}
+              </button>
+            </div>
           </section>
         ) : null}
 
@@ -3265,12 +3276,12 @@ function AdminPage() {
               <article className="admin-kpi-card">
                 <span className="admin-kpi-label">Codes created</span>
                 <strong>{dashboard?.referralAgents.length ?? 0}</strong>
-                <small>All issued Plus trial codes.</small>
+                <small>All issued agent access codes.</small>
               </article>
               <article className="admin-kpi-card">
                 <span className="admin-kpi-label">Total redemptions</span>
                 <strong>{agentInsights.totalRedemptions}</strong>
-                <small>Users who claimed a free Plus month.</small>
+                <small>Users who redeemed an agent access code.</small>
               </article>
               <article className="admin-kpi-card">
                 <span className="admin-kpi-label">Tracked revenue</span>
@@ -3340,6 +3351,7 @@ function AdminPage() {
                       <tr>
                         <th>Agent</th>
                         <th>Code</th>
+                        <th>Type</th>
                         <th>Contact</th>
                         <th>Redeemed</th>
                         <th>Converted</th>
@@ -3367,6 +3379,7 @@ function AdminPage() {
                             <small>{agent.attributedUsers} attributed users</small>
                           </td>
                           <td>{agent.code}</td>
+                          <td>{formatAgentCodeTypeLabel(agent.codeType)}</td>
                           <td>{agent.email || agent.phone || "--"}</td>
                           <td>{agent.redemptionsInRange}</td>
                           <td>{agent.convertedUsers}</td>
@@ -3402,7 +3415,7 @@ function AdminPage() {
                       <p className="admin-panel-kicker">Agent profile</p>
                       <h3 id="agent-modal-title">{selectedAgent.name || selectedAgent.code}</h3>
                       <span className="admin-detail-subtitle">
-                        {selectedAgent.code} - {selectedAgent.email || selectedAgent.phone || "No contact details"}
+                        {formatAgentCodeTypeLabel(selectedAgent.codeType)} code - {selectedAgent.code} - {selectedAgent.email || selectedAgent.phone || "No contact details"}
                       </span>
                     </div>
                     <div className="admin-detail-actions">
