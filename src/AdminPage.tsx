@@ -226,7 +226,7 @@ interface AgentAttributedUserRow {
 
 type AdminSection = "overview" | "users" | "sales" | "agents" | "codes" | "coupons" | "analytics";
 type FetchStatus = "idle" | "authenticated" | "refresh_failed" | "expired";
-type DateRangeFilter = "all" | "7d" | "30d" | "90d" | "365d";
+type DateRangeFilter = "all" | "7d" | "30d" | "90d" | "365d" | "custom";
 type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "name_asc" | "email_asc";
 type OrderSortKey = "createdAt_desc" | "createdAt_asc" | "price_desc" | "price_asc" | "status_asc" | "customer_asc";
 type AgentSortKey =
@@ -290,9 +290,17 @@ const formatCurrency = (value: number) =>
 
 const getDateRangeThreshold = (range: DateRangeFilter) => {
   if (range === "all") return null;
+  if (range === "custom") return null;
 
   const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
   return Date.now() - days * 24 * 60 * 60 * 1000;
+};
+
+const getDateInputBoundary = (value: string, boundary: "start" | "end") => {
+  if (!value) return null;
+
+  const parsed = new Date(`${value}${boundary === "end" ? "T23:59:59.999" : "T00:00:00.000"}`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
 };
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
@@ -792,6 +800,8 @@ function AdminPage() {
   const [salesSort, setSalesSort] = useState<OrderSortKey>("createdAt_desc");
   const [agentQuery, setAgentQuery] = useState("");
   const [agentDateRange, setAgentDateRange] = useState<DateRangeFilter>("30d");
+  const [agentDateStart, setAgentDateStart] = useState("");
+  const [agentDateEnd, setAgentDateEnd] = useState("");
   const [agentSort, setAgentSort] = useState<AgentSortKey>("totalRevenue_desc");
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
@@ -923,7 +933,17 @@ function AdminPage() {
     }
 
     const threshold = getDateRangeThreshold(agentDateRange);
-    const matchesRange = (timestamp: number | null | undefined) => !threshold || Boolean(timestamp && timestamp >= threshold);
+    const customStart = getDateInputBoundary(agentDateStart, "start");
+    const customEnd = getDateInputBoundary(agentDateEnd, "end");
+    const matchesRange = (timestamp: number | null | undefined) => {
+      if (!timestamp) return false;
+      if (agentDateRange === "custom") {
+        if (customStart && timestamp < customStart) return false;
+        if (customEnd && timestamp > customEnd) return false;
+        return true;
+      }
+      return !threshold || timestamp >= threshold;
+    };
     const usersById = new Map((dashboard.users || []).map((user) => [user.id, user] as const));
     const subscriptionsByUserId = new Map(
       (dashboard.subscriptions || []).map((subscription) => [subscription.userId, subscription] as const)
@@ -1170,7 +1190,7 @@ function AdminPage() {
       selectedTimeline,
       totalRedemptions: (dashboard.referralAgents || []).reduce((sum, agent) => sum + (agent.redemptionCount || 0), 0)
     };
-  }, [agentDateRange, agentQuery, agentSort, dashboard, selectedAgentId]);
+  }, [agentDateEnd, agentDateRange, agentDateStart, agentQuery, agentSort, dashboard, selectedAgentId]);
   const referralSummaries = useMemo(() => {
     if (!dashboard) return [];
 
@@ -3285,8 +3305,21 @@ function AdminPage() {
                       <option value="90d">Last 90 days</option>
                       <option value="365d">Last 12 months</option>
                       <option value="7d">Last 7 days</option>
+                      <option value="custom">Custom range</option>
                     </select>
                   </label>
+                  {agentDateRange === "custom" ? (
+                    <>
+                      <label className="admin-control-field">
+                        <span>Start date</span>
+                        <input type="date" value={agentDateStart} onChange={(event) => setAgentDateStart(event.target.value)} />
+                      </label>
+                      <label className="admin-control-field">
+                        <span>End date</span>
+                        <input type="date" value={agentDateEnd} onChange={(event) => setAgentDateEnd(event.target.value)} />
+                      </label>
+                    </>
+                  ) : null}
                   <label className="admin-control-field">
                     <span>Sort</span>
                     <select value={agentSort} onChange={(event) => setAgentSort(event.target.value as AgentSortKey)}>
@@ -3301,28 +3334,51 @@ function AdminPage() {
                 </div>
               </section>
               {agentInsights.rows.length ? (
-                <div className="admin-mini-list admin-agent-list">
-                  {agentInsights.rows.map((agent) => (
-                    <button
-                      key={agent.id}
-                      type="button"
-                      className={`admin-mini-row${selectedAgent?.id === agent.id && isAgentModalOpen ? " is-active" : ""}`}
-                      onClick={() => {
-                        setSelectedAgentId(agent.id);
-                        setAgentDetailTab("summary");
-                        setIsAgentModalOpen(true);
-                      }}
-                    >
-                      <div>
-                        <strong>{agent.name || agent.code}</strong>
-                        <span>{agent.code} - {agent.redemptionsInRange} redeemed - {agent.convertedUsers} converted</span>
-                      </div>
-                      <div className="admin-mini-row-meta">
-                        <strong>{formatCurrency(agent.totalRevenue)}</strong>
-                        <small>{formatDate(agent.latestActivityAt || null)}</small>
-                      </div>
-                    </button>
-                  ))}
+                <div className="admin-table-wrap">
+                  <table className="admin-table admin-table-wide">
+                    <thead>
+                      <tr>
+                        <th>Agent</th>
+                        <th>Code</th>
+                        <th>Contact</th>
+                        <th>Redeemed</th>
+                        <th>Converted</th>
+                        <th>Active paid</th>
+                        <th>Sub revenue</th>
+                        <th>Order revenue</th>
+                        <th>Total revenue</th>
+                        <th>Latest activity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {agentInsights.rows.map((agent) => (
+                        <tr
+                          key={agent.id}
+                          className={selectedAgent?.id === agent.id && isAgentModalOpen ? "is-selected" : ""}
+                          onClick={() => {
+                            setSelectedAgentId(agent.id);
+                            setAgentDetailTab("summary");
+                            setIsAgentModalOpen(true);
+                          }}
+                        >
+                          <td>
+                            <strong>{agent.name || "--"}</strong>
+                            <br />
+                            <small>{agent.attributedUsers} attributed users</small>
+                          </td>
+                          <td>{agent.code}</td>
+                          <td>{agent.email || agent.phone || "--"}</td>
+                          <td>{agent.redemptionsInRange}</td>
+                          <td>{agent.convertedUsers}</td>
+                          <td>{agent.activePaidUsers}</td>
+                          <td>{formatCurrency(agent.subscriptionRevenue)}</td>
+                          <td>{formatCurrency(agent.orderRevenue)}</td>
+                          <td>{formatCurrency(agent.totalRevenue)}</td>
+                          <td>{formatDate(agent.latestActivityAt || null)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
                 <div className="admin-empty-card">
