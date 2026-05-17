@@ -41,6 +41,58 @@ interface AdminReferralAgent {
   latestRedeemedAt?: number | null;
 }
 
+interface AdminAgentRedemption {
+  id: string;
+  agentId: string | null;
+  code: string;
+  userId: string;
+  redeemedAt: number;
+  periodStart: number;
+  periodEnd: number;
+}
+
+interface AdminSubscriptionSnapshot {
+  userId: string;
+  tier: "free" | "plus" | "pro";
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  stripePriceId?: string | null;
+  status: string | null;
+  currentPeriodStart: number | null;
+  currentPeriodEnd: number | null;
+  cancelAtPeriodEnd: boolean | number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface AdminAttributedOrder extends AdminOrder {
+  agentId: string | null;
+  agentCode: string;
+  deliveryAddress?: Record<string, any> | null;
+  recommendations?: Array<Record<string, any>>;
+}
+
+interface AdminSubscriptionBillingEvent {
+  id: string;
+  eventKey: string;
+  userId: string;
+  agentId: string | null;
+  agentCode: string | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  stripeInvoiceId: string | null;
+  eventType: string;
+  tier: "free" | "plus" | "pro";
+  status: string | null;
+  amount: number | null;
+  currency: string | null;
+  billingPeriodStart: number | null;
+  billingPeriodEnd: number | null;
+  occurredAt: number;
+  createdAt: number;
+  metadata?: Record<string, any> | null;
+}
+
 interface AdminDiscountCoupon {
   id: string;
   code: string;
@@ -102,6 +154,10 @@ interface AdminOverview {
   users: AdminUser[];
   orders: AdminOrder[];
   referralAgents: AdminReferralAgent[];
+  agentRedemptions?: AdminAgentRedemption[];
+  subscriptions?: AdminSubscriptionSnapshot[];
+  attributedOrders?: AdminAttributedOrder[];
+  subscriptionBillingEvents?: AdminSubscriptionBillingEvent[];
   discountCoupons?: AdminDiscountCoupon[];
 }
 
@@ -133,11 +189,53 @@ interface ReferralCodeRow {
   paidRevenue: number;
 }
 
+interface AgentPerformanceRow extends AdminReferralAgent {
+  redemptions: number;
+  redemptionsInRange: number;
+  activeTrials: number;
+  activePaidUsers: number;
+  convertedUsers: number;
+  renewalCount: number;
+  subscriptionRevenue: number;
+  firstPaymentRevenue: number;
+  renewalRevenue: number;
+  orderRevenue: number;
+  paidOrderCount: number;
+  totalRevenue: number;
+  latestActivityAt: number | null;
+  attributedUsers: number;
+}
+
+interface AgentAttributedUserRow {
+  userId: string;
+  email: string | null;
+  name: string | null;
+  country: string | null;
+  redeemedAt: number;
+  currentTier: string;
+  subscriptionStatus: string | null;
+  trialEnd: number | null;
+  firstPaidAt: number | null;
+  lastRenewalAt: number | null;
+  subscriptionRevenue: number;
+  orderCount: number;
+  orderRevenue: number;
+  totalRevenue: number;
+  lastActivityAt: number | null;
+}
+
 type AdminSection = "overview" | "users" | "sales" | "agents" | "codes" | "coupons" | "analytics";
 type FetchStatus = "idle" | "authenticated" | "refresh_failed" | "expired";
-type DateRangeFilter = "all" | "7d" | "30d" | "90d";
+type DateRangeFilter = "all" | "7d" | "30d" | "90d" | "365d";
 type UserSortKey = "createdAt_desc" | "createdAt_asc" | "lastLoginAt_desc" | "name_asc" | "email_asc";
 type OrderSortKey = "createdAt_desc" | "createdAt_asc" | "price_desc" | "price_asc" | "status_asc" | "customer_asc";
+type AgentSortKey =
+  | "totalRevenue_desc"
+  | "subscriptionRevenue_desc"
+  | "orderRevenue_desc"
+  | "latestActivity_desc"
+  | "redemptions_desc"
+  | "createdAt_desc";
 type CodeSortKey = "createdAt_desc" | "createdAt_asc" | "code_asc";
 
 const apiBase = (import.meta.env.VITE_APP_API_URL || "/api").replace(/\/$/, "");
@@ -191,8 +289,21 @@ const formatCurrency = (value: number) =>
 const getDateRangeThreshold = (range: DateRangeFilter) => {
   if (range === "all") return null;
 
-  const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
+  const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
   return Date.now() - days * 24 * 60 * 60 * 1000;
+};
+
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
+
+const isActivePaidSubscription = (subscription: AdminSubscriptionSnapshot | null | undefined) => {
+  if (!subscription) return false;
+  if (subscription.tier !== "plus" && subscription.tier !== "pro") return false;
+
+  const now = Date.now();
+  const status = subscription.status?.trim().toLowerCase() || "";
+  const isStripeBacked = Boolean(subscription.stripeSubscriptionId);
+  const isWithinManualPeriod = !subscription.currentPeriodEnd || subscription.currentPeriodEnd > now;
+  return ACTIVE_SUBSCRIPTION_STATUSES.has(status) && (isStripeBacked || isWithinManualPeriod);
 };
 
 const normalizeCsvValue = (value: string | number | null | undefined) => {
@@ -678,6 +789,9 @@ function AdminPage() {
   const [salesDateRange, setSalesDateRange] = useState<DateRangeFilter>("all");
   const [salesSort, setSalesSort] = useState<OrderSortKey>("createdAt_desc");
   const [agentQuery, setAgentQuery] = useState("");
+  const [agentDateRange, setAgentDateRange] = useState<DateRangeFilter>("30d");
+  const [agentSort, setAgentSort] = useState<AgentSortKey>("totalRevenue_desc");
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [newAgentCode, setNewAgentCode] = useState("");
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentEmail, setNewAgentEmail] = useState("");
@@ -792,6 +906,266 @@ function AdminPage() {
         }
       });
   }, [dashboard, salesDateRange, salesQuery, salesSort, salesStatusFilter]);
+  const agentInsights = useMemo(() => {
+    if (!dashboard) {
+      return {
+        rows: [] as AgentPerformanceRow[],
+        selectedAgent: null as AgentPerformanceRow | null,
+        selectedUsers: [] as AgentAttributedUserRow[],
+        selectedTimeline: [] as Array<{ id: string; label: string; meta: string; occurredAt: number }>,
+        totalRedemptions: 0
+      };
+    }
+
+    const threshold = getDateRangeThreshold(agentDateRange);
+    const matchesRange = (timestamp: number | null | undefined) => !threshold || Boolean(timestamp && timestamp >= threshold);
+    const usersById = new Map((dashboard.users || []).map((user) => [user.id, user] as const));
+    const subscriptionsByUserId = new Map(
+      (dashboard.subscriptions || []).map((subscription) => [subscription.userId, subscription] as const)
+    );
+    const agentByCode = new Map(
+      (dashboard.referralAgents || []).map((agent) => [agent.code.trim().toUpperCase(), agent] as const)
+    );
+    const resolveAgentId = (agentId: string | null | undefined, code: string | null | undefined) =>
+      agentId || (code ? agentByCode.get(code.trim().toUpperCase())?.id || null : null);
+
+    const redemptionsByAgent = new Map<string, AdminAgentRedemption[]>();
+    (dashboard.agentRedemptions || []).forEach((redemption) => {
+      const resolvedAgentId = resolveAgentId(redemption.agentId, redemption.code);
+      if (!resolvedAgentId) return;
+      const current = redemptionsByAgent.get(resolvedAgentId) || [];
+      current.push(redemption);
+      redemptionsByAgent.set(resolvedAgentId, current);
+    });
+
+    const ordersByAgent = new Map<string, AdminAttributedOrder[]>();
+    (dashboard.attributedOrders || []).forEach((order) => {
+      const resolvedAgentId = resolveAgentId(order.agentId, order.agentCode);
+      if (!resolvedAgentId) return;
+      const current = ordersByAgent.get(resolvedAgentId) || [];
+      current.push(order);
+      ordersByAgent.set(resolvedAgentId, current);
+    });
+
+    const eventsByAgent = new Map<string, AdminSubscriptionBillingEvent[]>();
+    (dashboard.subscriptionBillingEvents || []).forEach((event) => {
+      const resolvedAgentId = resolveAgentId(event.agentId, event.agentCode);
+      if (!resolvedAgentId) return;
+      const current = eventsByAgent.get(resolvedAgentId) || [];
+      current.push(event);
+      eventsByAgent.set(resolvedAgentId, current);
+    });
+
+    const query = agentQuery.trim().toLowerCase();
+    const rows = (dashboard.referralAgents || [])
+      .map((agent) => {
+        const redemptions = redemptionsByAgent.get(agent.id) || [];
+        const attributedOrders = (ordersByAgent.get(agent.id) || []).filter((order) => isPaidOrder(order.status));
+        const allEvents = eventsByAgent.get(agent.id) || [];
+        const invoicePaidEvents = allEvents
+          .filter((event) => event.eventType === "invoice_paid")
+          .sort((left, right) => left.occurredAt - right.occurredAt);
+        const redemptionsInRange = redemptions.filter((redemption) => matchesRange(redemption.redeemedAt));
+        const ordersInRange = attributedOrders.filter((order) => matchesRange(order.createdAt));
+        const paidEventsByUser = new Map<string, AdminSubscriptionBillingEvent[]>();
+
+        invoicePaidEvents.forEach((event) => {
+          const current = paidEventsByUser.get(event.userId) || [];
+          current.push(event);
+          paidEventsByUser.set(event.userId, current);
+        });
+
+        let convertedUsers = 0;
+        let firstPaymentRevenue = 0;
+        let renewalCount = 0;
+        let renewalRevenue = 0;
+        paidEventsByUser.forEach((events) => {
+          const sorted = [...events].sort((left, right) => left.occurredAt - right.occurredAt);
+          const first = sorted[0];
+          if (first && matchesRange(first.occurredAt)) {
+            convertedUsers += 1;
+            firstPaymentRevenue += first.amount || 0;
+          }
+          sorted.slice(1).forEach((event) => {
+            if (!matchesRange(event.occurredAt)) return;
+            renewalCount += 1;
+            renewalRevenue += event.amount || 0;
+          });
+        });
+
+        const attributedUserIds = Array.from(new Set(redemptions.map((redemption) => redemption.userId)));
+        const activeTrials = attributedUserIds.filter((userId) => {
+          const subscription = subscriptionsByUserId.get(userId);
+          return Boolean(
+            subscription &&
+              isActivePaidSubscription(subscription) &&
+              !subscription.stripeSubscriptionId
+          );
+        }).length;
+        const activePaidUsers = attributedUserIds.filter((userId) => {
+          const subscription = subscriptionsByUserId.get(userId);
+          return Boolean(
+            subscription &&
+              isActivePaidSubscription(subscription) &&
+              subscription.stripeSubscriptionId
+          );
+        }).length;
+
+        const subscriptionRevenue = invoicePaidEvents
+          .filter((event) => matchesRange(event.occurredAt))
+          .reduce((sum, event) => sum + (event.amount || 0), 0);
+        const orderRevenue = ordersInRange.reduce((sum, order) => sum + order.price, 0);
+        const latestActivityAt = [
+          ...redemptions.map((item) => item.redeemedAt),
+          ...attributedOrders.map((item) => item.createdAt),
+          ...allEvents.map((item) => item.occurredAt)
+        ].reduce<number | null>((latest, value) => (!latest || value > latest ? value : latest), null);
+
+        return {
+          ...agent,
+          redemptions: redemptions.length,
+          redemptionsInRange: redemptionsInRange.length,
+          activeTrials,
+          activePaidUsers,
+          convertedUsers,
+          renewalCount,
+          subscriptionRevenue,
+          firstPaymentRevenue,
+          renewalRevenue,
+          orderRevenue,
+          paidOrderCount: ordersInRange.length,
+          totalRevenue: subscriptionRevenue + orderRevenue,
+          latestActivityAt,
+          attributedUsers: attributedUserIds.length
+        } satisfies AgentPerformanceRow;
+      })
+      .filter((agent) => {
+        if (!query) return true;
+        return (
+          agent.code.toLowerCase().includes(query) ||
+          agent.name?.toLowerCase().includes(query) ||
+          agent.email?.toLowerCase().includes(query) ||
+          agent.phone?.toLowerCase().includes(query)
+        );
+      })
+      .sort((left, right) => {
+        switch (agentSort) {
+          case "subscriptionRevenue_desc":
+            return right.subscriptionRevenue - left.subscriptionRevenue || right.totalRevenue - left.totalRevenue;
+          case "orderRevenue_desc":
+            return right.orderRevenue - left.orderRevenue || right.totalRevenue - left.totalRevenue;
+          case "latestActivity_desc":
+            return (right.latestActivityAt || 0) - (left.latestActivityAt || 0);
+          case "redemptions_desc":
+            return right.redemptions - left.redemptions || right.totalRevenue - left.totalRevenue;
+          case "createdAt_desc":
+            return right.createdAt - left.createdAt;
+          case "totalRevenue_desc":
+          default:
+            return right.totalRevenue - left.totalRevenue || (right.latestActivityAt || 0) - (left.latestActivityAt || 0);
+        }
+      });
+
+    const selectedAgent =
+      rows.find((agent) => agent.id === selectedAgentId) ||
+      rows[0] ||
+      null;
+    const selectedAgentOrders = selectedAgent
+      ? (ordersByAgent.get(selectedAgent.id) || []).filter((order) => isPaidOrder(order.status))
+      : [];
+    const selectedAgentEvents = selectedAgent ? eventsByAgent.get(selectedAgent.id) || [] : [];
+
+    const selectedUsers: AgentAttributedUserRow[] = selectedAgent
+      ? ((redemptionsByAgent.get(selectedAgent.id) || [])
+          .map((redemption) => {
+            const user = usersById.get(redemption.userId);
+            const subscription = subscriptionsByUserId.get(redemption.userId);
+            const userOrders = selectedAgentOrders.filter((order) => order.userId === redemption.userId);
+            const userEvents = selectedAgentEvents
+              .filter((event) => event.userId === redemption.userId && event.eventType === "invoice_paid")
+              .sort((left, right) => left.occurredAt - right.occurredAt);
+            const firstPaidAt = userEvents[0]?.occurredAt || null;
+            const lastRenewalAt = userEvents.length > 1 ? userEvents[userEvents.length - 1].occurredAt : null;
+            const subscriptionRevenue = userEvents.reduce((sum, event) => sum + (event.amount || 0), 0);
+            const orderRevenue = userOrders.reduce((sum, order) => sum + order.price, 0);
+            const lastActivityAt = [
+              redemption.redeemedAt,
+              ...userEvents.map((event) => event.occurredAt),
+              ...userOrders.map((order) => order.createdAt)
+            ].reduce<number | null>((latest, value) => (!latest || value > latest ? value : latest), null);
+
+            return {
+              userId: redemption.userId,
+              email: user?.email || null,
+              name: user?.name || null,
+              country: user?.country || null,
+              redeemedAt: redemption.redeemedAt,
+              currentTier: isActivePaidSubscription(subscription) ? subscription?.tier || "free" : "free",
+              subscriptionStatus: subscription?.status || null,
+              trialEnd: redemption.periodEnd || null,
+              firstPaidAt,
+              lastRenewalAt,
+              subscriptionRevenue,
+              orderCount: userOrders.length,
+              orderRevenue,
+              totalRevenue: subscriptionRevenue + orderRevenue,
+              lastActivityAt
+            };
+          })
+          .sort((left, right) => (right.totalRevenue - left.totalRevenue) || ((right.lastActivityAt || 0) - (left.lastActivityAt || 0))))
+      : [];
+
+    const selectedTimeline = selectedAgent
+      ? [
+          ...(redemptionsByAgent.get(selectedAgent.id) || []).map((redemption) => {
+            const user = usersById.get(redemption.userId);
+            return {
+              id: `redemption-${redemption.id}`,
+              label: `${user?.name || user?.email || redemption.userId} redeemed ${selectedAgent.code}`,
+              meta: "Free Plus trial granted",
+              occurredAt: redemption.redeemedAt
+            };
+          }),
+          ...(selectedAgentEvents
+            .filter((event) => event.eventType !== "trial_granted")
+            .map((event) => ({
+            id: `event-${event.id}`,
+            label:
+              event.eventType === "invoice_paid"
+                ? `Subscription payment ${formatCurrency(event.amount || 0)}`
+                : event.eventType === "invoice_failed"
+                  ? "Subscription payment failed"
+                  : event.eventType === "subscription_cancelled"
+                    ? "Subscription cancelled"
+                    : event.eventType === "subscription_cancel_scheduled"
+                      ? "Cancellation scheduled"
+                      : event.eventType === "subscription_started"
+                        ? "Subscription started"
+                        : "Trial granted",
+            meta: usersById.get(event.userId)?.email || event.userId,
+            occurredAt: event.occurredAt
+          }))),
+          ...(selectedAgentOrders
+            .filter((order) => isPaidOrder(order.status))
+            .map((order) => ({
+              id: `order-${order.id}`,
+              label: `Supplement order ${order.orderNumber}`,
+              meta: `${order.customerName || order.userEmail || order.userId || "User"} - ${formatCurrency(order.price)}`,
+              occurredAt: order.createdAt
+            })))
+        ]
+          .sort((left, right) => right.occurredAt - left.occurredAt)
+          .slice(0, 18)
+      : [];
+
+    return {
+      rows,
+      selectedAgent,
+      selectedUsers,
+      selectedTimeline,
+      totalRedemptions: (dashboard.referralAgents || []).reduce((sum, agent) => sum + (agent.redemptionCount || 0), 0)
+    };
+  }, [agentDateRange, agentQuery, agentSort, dashboard, selectedAgentId]);
   const referralSummaries = useMemo(() => {
     if (!dashboard) return [];
 
@@ -1118,6 +1492,7 @@ function AdminPage() {
       setLastSyncedAt(Date.now());
       setSelectedUserId((payload as AdminOverview).users[0]?.id || null);
       setSelectedOrderId((payload as AdminOverview).orders[0]?.id || null);
+      setSelectedAgentId((payload as AdminOverview).referralAgents?.[0]?.id || null);
       sessionStorage.setItem(
         ADMIN_SESSION_KEY,
         JSON.stringify({ username: nextUsername, password: nextPassword })
@@ -1142,12 +1517,14 @@ function AdminPage() {
         setDashboard(null);
         setSelectedUserId(null);
         setSelectedOrderId(null);
+        setSelectedAgentId(null);
         setLastSyncedAt(null);
         setStatus("expired");
         sessionStorage.removeItem(ADMIN_SESSION_KEY);
       } else if (!dashboard) {
         setSelectedUserId(null);
         setSelectedOrderId(null);
+        setSelectedAgentId(null);
       } else {
         setStatus("refresh_failed");
       }
@@ -1543,6 +1920,12 @@ function AdminPage() {
   }, [filteredOrders, selectedOrderId]);
 
   useEffect(() => {
+    if (agentInsights.rows.length && !agentInsights.rows.some((agent) => agent.id === selectedAgentId)) {
+      setSelectedAgentId(agentInsights.rows[0].id);
+    }
+  }, [agentInsights.rows, selectedAgentId]);
+
+  useEffect(() => {
     if (!copiedField) return;
 
     const timeout = window.setTimeout(() => setCopiedField(""), 1800);
@@ -1631,6 +2014,7 @@ function AdminPage() {
     sessionStorage.removeItem(ADMIN_SESSION_KEY);
     setSelectedUserId(null);
     setSelectedOrderId(null);
+    setSelectedAgentId(null);
     setUserDetails(null);
     setLastSyncedAt(null);
     setActiveSection("overview");
@@ -2757,25 +3141,7 @@ function AdminPage() {
   };
 
   const renderAgents = () => {
-    const query = agentQuery.trim().toLowerCase();
-    const agentCodes = [...(dashboard?.referralAgents || [])]
-      .filter((agent) =>
-        !query ||
-        agent.code.toLowerCase().includes(query) ||
-        agent.name?.toLowerCase().includes(query) ||
-        agent.email?.toLowerCase().includes(query) ||
-        agent.phone?.toLowerCase().includes(query)
-      )
-      .sort((left, right) => {
-        const rightCount = right.redemptionCount || 0;
-        const leftCount = left.redemptionCount || 0;
-        if (rightCount !== leftCount) return rightCount - leftCount;
-        return (right.latestRedeemedAt || right.createdAt || 0) - (left.latestRedeemedAt || left.createdAt || 0);
-      });
-    const totalRedemptions = (dashboard?.referralAgents || []).reduce(
-      (sum, agent) => sum + (agent.redemptionCount || 0),
-      0
-    );
+    const selectedAgent = agentInsights.selectedAgent;
 
     return (
       <div className="admin-section-stack">
@@ -2787,8 +3153,18 @@ function AdminPage() {
           </article>
           <article className="admin-kpi-card">
             <span className="admin-kpi-label">Total redemptions</span>
-            <strong>{totalRedemptions}</strong>
-            <small>Number of users who used an agent code.</small>
+            <strong>{agentInsights.totalRedemptions}</strong>
+            <small>Users who redeemed an agent Plus trial code.</small>
+          </article>
+          <article className="admin-kpi-card">
+            <span className="admin-kpi-label">Tracked agent revenue</span>
+            <strong>{formatCurrency(agentInsights.rows.reduce((sum, agent) => sum + agent.totalRevenue, 0))}</strong>
+            <small>Selected period: subscriptions plus paid supplement orders.</small>
+          </article>
+          <article className="admin-kpi-card">
+            <span className="admin-kpi-label">Active paid users</span>
+            <strong>{agentInsights.rows.reduce((sum, agent) => sum + agent.activePaidUsers, 0)}</strong>
+            <small>Attributed users who are currently on a paid Stripe-backed plan.</small>
           </article>
         </section>
 
@@ -2827,8 +3203,8 @@ function AdminPage() {
         <section className="admin-panel-card">
           <div className="admin-panel-head">
             <div>
-              <p className="admin-panel-kicker">Agent codes</p>
-              <h3>Usage</h3>
+              <p className="admin-panel-kicker">Agent performance</p>
+              <h3>Attributed revenue and renewals</h3>
             </div>
           </div>
           <section className="admin-filters-bar">
@@ -2837,34 +3213,69 @@ function AdminPage() {
                 <span>Search</span>
                 <input value={agentQuery} onChange={(event) => setAgentQuery(event.target.value)} placeholder="Code, name, email, or phone" />
               </label>
-              <span className="admin-filter-summary">Showing {agentCodes.length}</span>
+              <label className="admin-control-field">
+                <span>Period</span>
+                <select value={agentDateRange} onChange={(event) => setAgentDateRange(event.target.value as DateRangeFilter)}>
+                  <option value="all">All time</option>
+                  <option value="30d">Last 30 days</option>
+                  <option value="90d">Last 90 days</option>
+                  <option value="365d">Last 12 months</option>
+                  <option value="7d">Last 7 days</option>
+                </select>
+              </label>
+              <label className="admin-control-field">
+                <span>Sort</span>
+                <select value={agentSort} onChange={(event) => setAgentSort(event.target.value as AgentSortKey)}>
+                  <option value="totalRevenue_desc">Total revenue</option>
+                  <option value="subscriptionRevenue_desc">Subscription revenue</option>
+                  <option value="orderRevenue_desc">Supplement revenue</option>
+                  <option value="latestActivity_desc">Latest activity</option>
+                  <option value="redemptions_desc">Redemptions</option>
+                  <option value="createdAt_desc">Newest code</option>
+                </select>
+              </label>
+              <span className="admin-filter-summary">Showing {agentInsights.rows.length}</span>
             </div>
           </section>
-          {agentCodes.length ? (
+          {agentInsights.rows.length ? (
             <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
                   <tr>
                     <th>Code</th>
                     <th>Agent</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Used by</th>
-                    <th>Latest use</th>
-                    <th>Created</th>
+                    <th>Redeemed</th>
+                    <th>Converted</th>
+                    <th>Active paid</th>
+                    <th>Subscription rev</th>
+                    <th>Renewals</th>
+                    <th>Order rev</th>
+                    <th>Total rev</th>
+                    <th>Latest activity</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {agentCodes.map((agent) => (
-                    <tr key={agent.id}>
+                  {agentInsights.rows.map((agent) => (
+                    <tr
+                      key={agent.id}
+                      className={selectedAgent?.id === agent.id ? "is-selected" : ""}
+                      onClick={() => setSelectedAgentId(agent.id)}
+                    >
                       <td>{agent.code}</td>
-                      <td>{agent.name || "--"}</td>
-                      <td>{agent.email || "--"}</td>
-                      <td>{agent.phone || "--"}</td>
-                      <td>{agent.redemptionCount || 0}</td>
-                      <td>{formatDate(agent.latestRedeemedAt || null)}</td>
-                      <td>{formatDate(agent.createdAt)}</td>
+                      <td>
+                        <strong>{agent.name || "--"}</strong>
+                        <br />
+                        <small>{agent.email || agent.phone || "--"}</small>
+                      </td>
+                      <td>{agent.redemptionsInRange}</td>
+                      <td>{agent.convertedUsers}</td>
+                      <td>{agent.activePaidUsers}</td>
+                      <td>{formatCurrency(agent.subscriptionRevenue)}</td>
+                      <td>{agent.renewalCount}</td>
+                      <td>{formatCurrency(agent.orderRevenue)}</td>
+                      <td>{formatCurrency(agent.totalRevenue)}</td>
+                      <td>{formatDate(agent.latestActivityAt || null)}</td>
                       <td>
                         <button type="button" className="admin-copy-button" onClick={() => handleCopy(`agent-${agent.id}`, agent.code)}>
                           {copiedField === `agent-${agent.id}` ? "Copied" : "Copy"}
@@ -2881,10 +3292,144 @@ function AdminPage() {
           ) : (
             <div className="admin-empty-card">
               <strong>No agent codes yet</strong>
-              <p>Create a code above and give it to an agent. Redemptions will show here.</p>
+              <p>Create a code above and give it to an agent. Revenue and renewals will appear once users redeem and transact.</p>
             </div>
           )}
         </section>
+
+        {selectedAgent ? (
+          <section className="admin-overview-grid">
+            <aside className="admin-detail-card">
+              <div className="admin-detail-head">
+                <div>
+                  <h3>{selectedAgent.name || selectedAgent.code}</h3>
+                  <span className="admin-detail-subtitle">
+                    {selectedAgent.code} - {selectedAgent.email || selectedAgent.phone || "No contact details"}
+                  </span>
+                </div>
+              </div>
+              <div className="admin-detail-summary-grid">
+                <article className="admin-detail-summary-card">
+                  <span className="admin-status-label">Attributed users</span>
+                  <strong>{selectedAgent.attributedUsers}</strong>
+                </article>
+                <article className="admin-detail-summary-card">
+                  <span className="admin-status-label">Total revenue</span>
+                  <strong>{formatCurrency(selectedAgent.totalRevenue)}</strong>
+                </article>
+                <article className="admin-detail-summary-card">
+                  <span className="admin-status-label">Trial users active</span>
+                  <strong>{selectedAgent.activeTrials}</strong>
+                </article>
+                <article className="admin-detail-summary-card">
+                  <span className="admin-status-label">First payments</span>
+                  <strong>{formatCurrency(selectedAgent.firstPaymentRevenue)}</strong>
+                </article>
+              </div>
+              <dl className="admin-detail-grid">
+                <div>
+                  <dt>Code created</dt>
+                  <dd>{formatDate(selectedAgent.createdAt)}</dd>
+                </div>
+                <div>
+                  <dt>Latest activity</dt>
+                  <dd>{formatDate(selectedAgent.latestActivityAt || null)}</dd>
+                </div>
+                <div>
+                  <dt>Renewal revenue</dt>
+                  <dd>{formatCurrency(selectedAgent.renewalRevenue)}</dd>
+                </div>
+                <div>
+                  <dt>Paid orders</dt>
+                  <dd>{selectedAgent.paidOrderCount}</dd>
+                </div>
+              </dl>
+            </aside>
+
+            <article className="admin-panel-card">
+              <div className="admin-panel-head">
+                <div>
+                  <p className="admin-panel-kicker">Attributed users</p>
+                  <h3>Who redeemed, paid, and reordered</h3>
+                </div>
+              </div>
+              {agentInsights.selectedUsers.length ? (
+                <div className="admin-table-wrap">
+                  <table className="admin-table admin-table-wide">
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Redeemed</th>
+                        <th>Current tier</th>
+                        <th>First paid</th>
+                        <th>Last renewal</th>
+                        <th>Subscription rev</th>
+                        <th>Paid orders</th>
+                        <th>Order rev</th>
+                        <th>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {agentInsights.selectedUsers.map((user) => (
+                        <tr key={`${selectedAgent.id}-${user.userId}`}>
+                          <td>
+                            <strong>{user.name || user.email || user.userId}</strong>
+                            <br />
+                            <small>{user.email || user.country || user.userId}</small>
+                          </td>
+                          <td>{formatDate(user.redeemedAt)}</td>
+                          <td>{user.currentTier.toUpperCase()}</td>
+                          <td>{formatDate(user.firstPaidAt)}</td>
+                          <td>{formatDate(user.lastRenewalAt)}</td>
+                          <td>{formatCurrency(user.subscriptionRevenue)}</td>
+                          <td>{user.orderCount}</td>
+                          <td>{formatCurrency(user.orderRevenue)}</td>
+                          <td>{formatCurrency(user.totalRevenue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="admin-empty-card">
+                  <strong>No attributed users yet</strong>
+                  <p>Once people redeem this code, their renewals and purchases will appear here.</p>
+                </div>
+              )}
+            </article>
+          </section>
+        ) : null}
+
+        {selectedAgent ? (
+          <section className="admin-panel-card">
+            <div className="admin-panel-head">
+              <div>
+                <p className="admin-panel-kicker">Timeline</p>
+                <h3>Latest tracked events</h3>
+              </div>
+            </div>
+            {agentInsights.selectedTimeline.length ? (
+              <div className="admin-mini-list">
+                {agentInsights.selectedTimeline.map((event) => (
+                  <div key={event.id} className="admin-mini-row admin-mini-row-static">
+                    <div>
+                      <strong>{event.label}</strong>
+                      <span>{event.meta}</span>
+                    </div>
+                    <div className="admin-mini-row-meta">
+                      <span>{formatDate(event.occurredAt)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-empty-card">
+                <strong>No tracked activity yet</strong>
+                <p>We’ll start filling this once a user redeems the code or Stripe sends billing activity.</p>
+              </div>
+            )}
+          </section>
+        ) : null}
       </div>
     );
   };
