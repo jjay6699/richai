@@ -1322,6 +1322,22 @@
   color: var(--text);
 }
 
+.app-download-modal-disabled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.9rem;
+  padding: 0 1rem;
+  border-radius: 0.92rem;
+  border: 1px solid rgba(145, 94, 52, 0.12);
+  background: rgba(248, 242, 234, 0.95);
+  color: rgba(63, 52, 41, 0.72);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .app-download-modal-open-web {
   width: 100%;
   margin-top: 0.75rem;
