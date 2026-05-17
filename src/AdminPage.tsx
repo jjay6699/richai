@@ -806,6 +806,45 @@ const requestOrderStatusUpdate = async (
   throw new TypeError("Unable to reach the admin service.");
 };
 
+const requestOrderEmailResend = async (
+  nextUsername: string,
+  nextPassword: string,
+  orderId: string,
+  target: "customer" | "admin"
+) => {
+  const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword), "Content-Type": "application/json" };
+  const payload = { target };
+  let lastErrorResponse: Response | null = null;
+
+  const attempts: Array<() => Promise<Response>> = [
+    () =>
+      fetch(`${apiBase}/admin/orders/${orderId}/resend-email`, {
+        method: "POST",
+        headers: authHeader,
+        body: JSON.stringify(payload)
+      }),
+    () =>
+      fetch(`${directApiBase}/admin/orders/${orderId}/resend-email`, {
+        method: "POST",
+        headers: authHeader,
+        body: JSON.stringify(payload)
+      })
+  ];
+
+  for (const run of attempts) {
+    try {
+      const response = await run();
+      if (response.ok) return response;
+      lastErrorResponse = response;
+    } catch {
+      // continue
+    }
+  }
+
+  if (lastErrorResponse) return lastErrorResponse;
+  throw new TypeError("Unable to reach the admin service.");
+};
+
 function AdminPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -865,6 +904,7 @@ function AdminPage() {
   const [newCouponIsActive, setNewCouponIsActive] = useState(true);
   const [isSavingCoupon, setIsSavingCoupon] = useState(false);
   const [isSavingOrderStatus, setIsSavingOrderStatus] = useState(false);
+  const [resendingOrderEmailTarget, setResendingOrderEmailTarget] = useState<"customer" | "admin" | null>(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [userDetails, setUserDetails] = useState<AdminUserDetails | null>(null);
   const [isLoadingUserDetails, setIsLoadingUserDetails] = useState(false);
@@ -1777,6 +1817,47 @@ function AdminPage() {
       setError(nextError instanceof Error ? nextError.message : "Unable to update order status.");
     } finally {
       setIsSavingOrderStatus(false);
+    }
+  };
+
+  const handleResendOrderEmail = async (orderId: string, orderNumber: string, target: "customer" | "admin") => {
+    setResendingOrderEmailTarget(target);
+    setError("");
+    setFlashMessage("");
+
+    try {
+      const response = await requestOrderEmailResend(username.trim(), password, orderId, target);
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string; delivery?: { successfulJobs?: number; failedJobs?: number } | null }
+        | null;
+
+      if (!response.ok) {
+        if (payload?.error === "order_not_found") {
+          throw new Error("That order no longer exists.");
+        }
+        if (payload?.error === "customer_email_missing") {
+          throw new Error("This order does not have a customer email to resend to.");
+        }
+        if (payload?.error === "email_not_configured") {
+          throw new Error("Email sending is not configured on the app service.");
+        }
+        if (payload?.error === "email_recipient_missing") {
+          throw new Error("No valid email recipient was found for this resend.");
+        }
+        throw new Error(`Unable to resend the ${target} order email.`);
+      }
+
+      const successCount = Number(payload?.delivery?.successfulJobs || 0);
+      const failedCount = Number(payload?.delivery?.failedJobs || 0);
+      setFlashMessage(
+        target === "customer"
+          ? `Customer email resent for ${orderNumber}. Success: ${successCount}, failed: ${failedCount}.`
+          : `Admin email resent for ${orderNumber}. Success: ${successCount}, failed: ${failedCount}.`
+      );
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : `Unable to resend the ${target} order email.`);
+    } finally {
+      setResendingOrderEmailTarget(null);
     }
   };
 
@@ -2890,6 +2971,24 @@ function AdminPage() {
                 <small>Unpaid orders auto-expire after 12 hours.</small>
               </div>
             ) : null}
+            <div className="admin-detail-actions">
+              <button
+                type="button"
+                className="admin-link-button"
+                onClick={() => handleResendOrderEmail(selectedOrder.id, selectedOrder.orderNumber, "customer")}
+                disabled={resendingOrderEmailTarget !== null}
+              >
+                {resendingOrderEmailTarget === "customer" ? "Sending..." : "Resend customer email"}
+              </button>
+              <button
+                type="button"
+                className="admin-link-button"
+                onClick={() => handleResendOrderEmail(selectedOrder.id, selectedOrder.orderNumber, "admin")}
+                disabled={resendingOrderEmailTarget !== null}
+              >
+                {resendingOrderEmailTarget === "admin" ? "Sending..." : "Resend admin email"}
+              </button>
+            </div>
             <div className="admin-related-panel">
               <div className="admin-related-panel-head">
                 <p className="admin-panel-kicker">Customer history</p>
