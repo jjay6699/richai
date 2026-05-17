@@ -908,21 +908,26 @@
   box-shadow: 0 24px 56px rgba(44, 37, 29, 0.08);
 }
 
+.science-media-visual {
+  position: relative;
+  min-height: calc(41rem - 1.9rem);
+  border-radius: 1.45rem;
+  overflow: hidden;
+}
+
 .science-media-image,
 .science-media-wash {
   position: absolute;
 }
 
 .science-media-image {
-  inset: 0.95rem;
-  border-radius: 1.45rem;
+  inset: 0;
   background-size: cover;
   background-position: center 24%;
 }
 
 .science-media-wash {
-  inset: 0.95rem;
-  border-radius: 1.45rem;
+  inset: 0;
   background:
     linear-gradient(180deg, rgba(255, 251, 245, 0.04) 0%, rgba(44, 37, 29, 0.12) 100%),
     linear-gradient(135deg, rgba(255, 248, 240, 0.14) 0%, rgba(255, 248, 240, 0) 42%),
@@ -1959,6 +1964,10 @@
     border-radius: 1.6rem;
   }
 
+  .science-media-visual {
+    min-height: 22rem;
+  }
+
   .science-media-note {
     left: 1.5rem;
     right: 1.5rem;
@@ -2033,6 +2042,25 @@
 
   .app-download-modal h3 {
     font-size: 1.34rem;
+  }
+
+  .science-media-frame {
+    min-height: 0;
+    padding: 0.85rem;
+  }
+
+  .science-media-visual {
+    min-height: 17rem;
+  }
+
+  .science-media-note {
+    position: static;
+    margin-top: 0.9rem;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    max-width: none;
+    background: rgba(255, 252, 247, 0.92);
   }
 
   .app-download-modal-availability {

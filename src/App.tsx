@@ -419,8 +419,10 @@ function MarketingPage() {
             variants={staggerContainer}
           >
             <motion.div variants={fadeUp} className="science-media-frame">
-              <div className="science-media-image" style={{ backgroundImage: "url(/hero/richealthai-ph2.png)" }} />
-              <div className="science-media-wash" />
+              <div className="science-media-visual">
+                <div className="science-media-image" style={{ backgroundImage: "url(/hero/richealthai-ph2.png)" }} />
+                <div className="science-media-wash" />
+              </div>
               <div className="science-media-note">
                 <span className="science-card-label">Uncompromised purity</span>
                 <strong>Our premium ingredients blended for your unique wellness needs, with absolutely zero artificial additives.</strong>
