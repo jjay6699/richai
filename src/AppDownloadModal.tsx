@@ -39,18 +39,26 @@ function AppDownloadModal({ isOpen, onClose }: AppDownloadModalProps) {
       >
         <p className="app-download-modal-kicker">Get the RicHealth AI app</p>
         <h3 id="app-download-modal-title">Start your health journey on mobile</h3>
-        <p>
+        <p className="app-download-modal-copy">
           The Apple App Store and Google Play Store versions are coming soon. You can still open the RicHealth web app
           on your phone today.
         </p>
 
-        <div className="app-download-modal-actions">
-          <button type="button" className="app-download-modal-disabled" disabled>
-            Apple App Store - Coming soon
-          </button>
-          <button type="button" className="app-download-modal-disabled" disabled>
-            Google Play Store - Coming soon
-          </button>
+        <div className="app-download-modal-availability" aria-label="App store availability">
+          <div className="app-download-modal-store-card">
+            <div className="app-download-modal-store-top">
+              <span className="app-download-modal-store-name">Apple App Store</span>
+              <span className="app-download-modal-store-badge">Coming soon</span>
+            </div>
+            <p className="app-download-modal-store-copy">Native iPhone app is in progress.</p>
+          </div>
+          <div className="app-download-modal-store-card">
+            <div className="app-download-modal-store-top">
+              <span className="app-download-modal-store-name">Google Play Store</span>
+              <span className="app-download-modal-store-badge">Coming soon</span>
+            </div>
+            <p className="app-download-modal-store-copy">Native Android app is coming shortly.</p>
+          </div>
         </div>
 
         <a className="app-download-modal-open-web" href="https://app.richealth.ai/" target="_blank" rel="noreferrer">

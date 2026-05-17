@@ -1263,11 +1263,13 @@
 
 .app-download-modal {
   width: min(34rem, 100%);
-  padding: 1.45rem 1.35rem;
-  border-radius: 1.25rem;
+  padding: 1.55rem 1.45rem;
+  border-radius: 1.45rem;
   border: 1px solid rgba(228, 216, 200, 0.95);
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 24px 56px rgba(18, 32, 45, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(212, 148, 90, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(255, 250, 244, 0.98));
+  box-shadow: 0 28px 60px rgba(18, 32, 45, 0.24);
 }
 
 .app-download-modal-kicker {
@@ -1293,14 +1295,17 @@
   line-height: 1.58;
 }
 
-.app-download-modal-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.7rem;
-  margin-top: 1rem;
+.app-download-modal-copy {
+  max-width: 31rem;
 }
 
-.app-download-modal-actions a,
+.app-download-modal-availability {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-top: 1.15rem;
+}
+
 .app-download-modal-open-web,
 .app-download-modal-close {
   display: inline-flex;
@@ -1315,32 +1320,60 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.app-download-modal-actions a,
+.app-download-modal-store-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  min-height: 7.4rem;
+  padding: 1rem 1rem 0.95rem;
+  border-radius: 1.05rem;
+  border: 1px solid rgba(145, 94, 52, 0.14);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.app-download-modal-store-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.app-download-modal-store-name {
+  color: var(--text);
+  font-size: 0.98rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.app-download-modal-store-badge {
+  flex-shrink: 0;
+  padding: 0.32rem 0.58rem;
+  border-radius: 999px;
+  background: rgba(212, 148, 90, 0.14);
+  color: var(--brand-accent-strong, var(--accent-dark));
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.app-download-modal-store-copy {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .app-download-modal-close {
   border: 1px solid rgba(145, 94, 52, 0.16);
   background: rgba(255, 255, 255, 0.92);
   color: var(--text);
 }
 
-.app-download-modal-disabled {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.9rem;
-  padding: 0 1rem;
-  border-radius: 0.92rem;
-  border: 1px solid rgba(145, 94, 52, 0.12);
-  background: rgba(248, 242, 234, 0.95);
-  color: rgba(63, 52, 41, 0.72);
-  font-size: 0.92rem;
-  font-weight: 700;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
 .app-download-modal-open-web {
   width: 100%;
-  margin-top: 0.75rem;
+  margin-top: 0.95rem;
   border: 1px solid rgba(145, 94, 52, 0.2);
   background: var(--brand-gradient);
   color: var(--text-inverse);
@@ -1353,7 +1386,6 @@
   font: inherit;
 }
 
-.app-download-modal-actions a:hover,
 .app-download-modal-open-web:hover,
 .app-download-modal-close:hover {
   transform: translateY(-1px);
@@ -1994,8 +2026,21 @@
     width: 100%;
   }
 
-  .app-download-modal-actions {
+  .app-download-modal {
+    padding: 1.25rem 1rem;
+    border-radius: 1.2rem;
+  }
+
+  .app-download-modal h3 {
+    font-size: 1.34rem;
+  }
+
+  .app-download-modal-availability {
     grid-template-columns: 1fr;
+  }
+
+  .app-download-modal-store-card {
+    min-height: 0;
   }
 
   .site-footer {
