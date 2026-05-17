@@ -2050,7 +2050,11 @@
   }
 
   .science-media-visual {
-    min-height: 17rem;
+    min-height: 22rem;
+  }
+
+  .science-media-image {
+    background-position: center 18%;
   }
 
   .science-media-note {
