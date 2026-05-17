@@ -34,6 +34,7 @@ interface AdminReferralAgent {
   code: string;
   name: string | null;
   email: string | null;
+  phone?: string | null;
   createdAt: number;
   updatedAt: number;
   redemptionCount?: number;
@@ -425,7 +426,7 @@ const requestAdminOverview = async (nextUsername: string, nextPassword: string) 
 const requestReferralAgentCreate = async (
   nextUsername: string,
   nextPassword: string,
-  payload: { code: string; name?: string | null; email?: string | null }
+  payload: { code: string; name?: string | null; email?: string | null; phone?: string | null }
 ) => {
   const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword), "Content-Type": "application/json" };
   let lastErrorResponse: Response | null = null;
@@ -680,6 +681,7 @@ function AdminPage() {
   const [newAgentCode, setNewAgentCode] = useState("");
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentEmail, setNewAgentEmail] = useState("");
+  const [newAgentPhone, setNewAgentPhone] = useState("");
   const [isSavingAgent, setIsSavingAgent] = useState(false);
   const [codeQuery, setCodeQuery] = useState("");
   const [codeSort, setCodeSort] = useState<CodeSortKey>("createdAt_desc");
@@ -1691,7 +1693,8 @@ function AdminPage() {
       const response = await requestReferralAgentCreate(username.trim(), password, {
         code,
         name: newAgentName.trim() || null,
-        email: newAgentEmail.trim() || null
+        email: newAgentEmail.trim() || null,
+        phone: newAgentPhone.trim() || null
       });
 
       const payload = (await response.json().catch(() => null)) as
@@ -1725,6 +1728,7 @@ function AdminPage() {
       setNewAgentCode("");
       setNewAgentName("");
       setNewAgentEmail("");
+      setNewAgentPhone("");
       setFlashMessage("Referral code created.");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to create referral code.");
@@ -2759,7 +2763,8 @@ function AdminPage() {
         !query ||
         agent.code.toLowerCase().includes(query) ||
         agent.name?.toLowerCase().includes(query) ||
-        agent.email?.toLowerCase().includes(query)
+        agent.email?.toLowerCase().includes(query) ||
+        agent.phone?.toLowerCase().includes(query)
       )
       .sort((left, right) => {
         const rightCount = right.redemptionCount || 0;
@@ -2808,6 +2813,10 @@ function AdminPage() {
                 <span>Agent email</span>
                 <input value={newAgentEmail} onChange={(event) => setNewAgentEmail(event.target.value)} placeholder="Optional" />
               </label>
+              <label className="admin-control-field">
+                <span>Phone number</span>
+                <input value={newAgentPhone} onChange={(event) => setNewAgentPhone(event.target.value)} placeholder="Optional" />
+              </label>
               <button type="button" className="admin-submit-button" onClick={handleCreateReferralAgent} disabled={isSavingAgent}>
                 {isSavingAgent ? "Creating..." : "Create code"}
               </button>
@@ -2826,7 +2835,7 @@ function AdminPage() {
             <div className="admin-controls">
               <label className="admin-control-field admin-control-field-wide">
                 <span>Search</span>
-                <input value={agentQuery} onChange={(event) => setAgentQuery(event.target.value)} placeholder="Code, name, or email" />
+                <input value={agentQuery} onChange={(event) => setAgentQuery(event.target.value)} placeholder="Code, name, email, or phone" />
               </label>
               <span className="admin-filter-summary">Showing {agentCodes.length}</span>
             </div>
@@ -2839,6 +2848,7 @@ function AdminPage() {
                     <th>Code</th>
                     <th>Agent</th>
                     <th>Email</th>
+                    <th>Phone</th>
                     <th>Used by</th>
                     <th>Latest use</th>
                     <th>Created</th>
@@ -2851,6 +2861,7 @@ function AdminPage() {
                       <td>{agent.code}</td>
                       <td>{agent.name || "--"}</td>
                       <td>{agent.email || "--"}</td>
+                      <td>{agent.phone || "--"}</td>
                       <td>{agent.redemptionCount || 0}</td>
                       <td>{formatDate(agent.latestRedeemedAt || null)}</td>
                       <td>{formatDate(agent.createdAt)}</td>
