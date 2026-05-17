@@ -3072,6 +3072,10 @@
   margin-bottom: 1rem;
 }
 
+.admin-detail-head-actions {
+  margin-top: 0.9rem;
+}
+
 .admin-detail-subtitle {
   display: block;
   margin-top: 0.45rem;

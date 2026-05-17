@@ -744,6 +744,29 @@ const requestAdminUserDetails = async (nextUsername: string, nextPassword: strin
   throw new TypeError("Unable to reach the admin service.");
 };
 
+const requestAdminUserDelete = async (nextUsername: string, nextPassword: string, userId: string) => {
+  const authHeader = { Authorization: encodeBasicAuth(nextUsername, nextPassword) };
+  let lastErrorResponse: Response | null = null;
+
+  const attempts: Array<() => Promise<Response>> = [
+    () => fetch(`${apiBase}/admin/users/${userId}`, { method: "DELETE", headers: authHeader }),
+    () => fetch(`${directApiBase}/admin/users/${userId}`, { method: "DELETE", headers: authHeader })
+  ];
+
+  for (const run of attempts) {
+    try {
+      const response = await run();
+      if (response.ok) return response;
+      lastErrorResponse = response;
+    } catch {
+      // continue
+    }
+  }
+
+  if (lastErrorResponse) return lastErrorResponse;
+  throw new TypeError("Unable to reach the admin service.");
+};
+
 const requestOrderStatusUpdate = async (
   nextUsername: string,
   nextPassword: string,
@@ -842,6 +865,7 @@ function AdminPage() {
   const [newCouponIsActive, setNewCouponIsActive] = useState(true);
   const [isSavingCoupon, setIsSavingCoupon] = useState(false);
   const [isSavingOrderStatus, setIsSavingOrderStatus] = useState(false);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [userDetails, setUserDetails] = useState<AdminUserDetails | null>(null);
   const [isLoadingUserDetails, setIsLoadingUserDetails] = useState(false);
 
@@ -1756,6 +1780,60 @@ function AdminPage() {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!selectedUser?.id) return;
+
+    const displayLabel = selectedUser.name || selectedUser.email || selectedUser.id;
+    const firstConfirmed = window.confirm(
+      `Delete user ${displayLabel}?\n\nThis will permanently remove the user and linked local app data.`
+    );
+    if (!firstConfirmed) return;
+
+    const confirmationValue = window.prompt(
+      `Second confirmation: type DELETE to remove ${selectedUser.email || selectedUser.id}.`
+    );
+    if (confirmationValue !== "DELETE") {
+      setFlashMessage("User deletion cancelled.");
+      return;
+    }
+
+    setIsDeletingUser(true);
+    setError("");
+    setFlashMessage("");
+
+    try {
+      const targetUserId = selectedUser.id;
+      const response = await requestAdminUserDelete(username.trim(), password, targetUserId);
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        if (payload?.error === "user_not_found") {
+          throw new Error("That user no longer exists.");
+        }
+        if (payload?.error === "active_subscription_delete_blocked") {
+          throw new Error("Cancel the user’s active Stripe subscription before deleting this account.");
+        }
+        throw new Error("Unable to delete user.");
+      }
+
+      setDashboard((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          users: current.users.filter((user) => user.id !== targetUserId),
+          orders: current.orders.filter((order) => order.userId !== targetUserId)
+        };
+      });
+      setUserDetails(null);
+      setSelectedUserId((current) => (current === targetUserId ? null : current));
+      setFlashMessage("User deleted.");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to delete user.");
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
   useEffect(() => {
     if (!isSignedIn) return;
     if (activeSection !== "coupons" && activeSection !== "codes") return;
@@ -2467,6 +2545,18 @@ function AdminPage() {
             <span className="admin-detail-subtitle">
               {selectedUser?.email || "Choose a row to inspect user account details."}
             </span>
+            {selectedUser ? (
+              <div className="admin-detail-head-actions">
+                <button
+                  type="button"
+                  className="admin-link-button admin-link-danger"
+                  onClick={handleDeleteUser}
+                  disabled={isDeletingUser}
+                >
+                  {isDeletingUser ? "Deleting..." : "Delete user"}
+                </button>
+              </div>
+            ) : null}
           </div>
           {selectedUser ? (
             <>
