@@ -38,9 +38,9 @@ const contactCards = [
   },
   {
     label: "Call us",
-    value: "+60164476899",
+    value: "+60176133066",
     body: "Monday to Friday, 9:00 AM to 6:00 PM.",
-    href: "tel:+60164476899"
+    href: "tel:+60176133066"
   }
 ];
 

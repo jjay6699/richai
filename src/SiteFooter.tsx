@@ -42,7 +42,7 @@ function SiteFooter() {
             <div className="site-footer-column">
               <span className="site-footer-heading">Reach us</span>
               <a href="mailto:info@richealth.ai">info@richealth.ai</a>
-              <a href="tel:+60164476899">+60164476899</a>
+              <a href="tel:+60176133066">+60176133066</a>
               <span className="site-footer-meta">Mon to Fri, 9:00 AM to 6:00 PM</span>
             </div>
           </div>
